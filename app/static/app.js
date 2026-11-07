@@ -2,8 +2,11 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 let lastMarkdown = "";
 
+let masterEnabled = false;
 fetch("/api/health").then((r) => r.json()).then((h) => {
   $("provider").textContent = `LLM: ${h.provider}`;
+  masterEnabled = !!h.master_cv;
+  $("useMaster").hidden = $("saveMaster").hidden = !masterEnabled;
   if (h.provider === "mock") $("provider").title = "Rule-based demo mode. Set LLM_PROVIDER and an API key for full results.";
 }).catch(() => ($("provider").textContent = "offline"));
 
@@ -70,7 +73,10 @@ function render(d) {
   const missing = [...d.ats_after.must_have_missing, ...d.ats_after.nice_to_have_missing];
   $("gained").innerHTML = gained.map((k) => `<span class="chip hit">+ ${esc(k)}</span>`).join("") ||
     "<span class='muted small'>None: your CV already used the employer's wording for every skill it supports.</span>";
-  $("missing").innerHTML = missing.map((k) => `<span class="chip miss">${esc(k)}</span>`).join("") || "<span class='muted small'>None</span>";
+  $("missing").innerHTML = missing.map((k) => `<span class="chip miss ${masterEnabled ? "can" : ""}" data-skill="${esc(k)}">${esc(k)}</span>`).join("") || "<span class='muted small'>None</span>";
+  $("haveHint").hidden = !masterEnabled || missing.length === 0;
+  $("evForm").hidden = $("evDone").hidden = true;
+  if (masterEnabled) [...$("missing").querySelectorAll(".chip.can")].forEach((c) => (c.onclick = () => openEvidence(c)));
   $("role").textContent = `· ${d.job.title}`;
   $("fit").textContent = d.gaps.fit_summary;
   $("strengths").innerHTML = d.gaps.transferable_strengths.map((s) => `<li>${esc(s)}</li>`).join("") || "<li class='muted'>None listed</li>";
@@ -113,4 +119,51 @@ $("dl").onclick = () => {
   a.download = "tailored-cv.md";
   a.click();
   URL.revokeObjectURL(a.href);
+};
+
+// ---------- master CV ----------
+$("useMaster").onclick = async () => {
+  const d = await (await fetch("/api/master")).json();
+  if (!d.exists) return showError("No master CV yet. Paste or upload your CV, then click 'Save as master CV'.");
+  showError("");
+  $("cv").value = d.text;
+};
+
+$("saveMaster").onclick = async () => {
+  const text = $("cv").value.trim();
+  if (text.length < 50) return showError("Paste your CV first.");
+  if (!confirm("Replace your saved master CV with the text in the CV box?")) return;
+  const r = await fetch("/api/master", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
+  const d = await r.json();
+  if (!r.ok) return showError(d.detail || "Could not save");
+  showError("");
+  $("saveMaster").textContent = "Saved ✓";
+  setTimeout(() => ($("saveMaster").textContent = "Save as master CV"), 1500);
+};
+
+let evChip = null;
+function openEvidence(chip) {
+  evChip = chip;
+  $("evSkill").textContent = chip.dataset.skill;
+  $("evText").value = "";
+  $("evDone").hidden = true;
+  $("evForm").hidden = false;
+  $("evText").focus();
+}
+$("evCancel").onclick = () => ($("evForm").hidden = true);
+$("evForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const skill = evChip.dataset.skill, evidence = $("evText").value.trim();
+  if (evidence.length < 10) return showError("Add a short sentence describing where you used it.");
+  const r = await fetch("/api/master/evidence", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ skill, evidence }) });
+  const d = await r.json();
+  if (!r.ok) return showError(typeof d.detail === "string" ? d.detail : "Could not save");
+  showError("");
+  $("cv").value = d.text;
+  evChip.classList.remove("can");
+  evChip.classList.add("added");
+  evChip.onclick = null;
+  $("evForm").hidden = true;
+  $("evDone").textContent = `Added "${skill}" to your master CV and loaded it into the CV box. Click "Tailor my CV" again to update the score.`;
+  $("evDone").hidden = false;
 };

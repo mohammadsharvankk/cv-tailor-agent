@@ -9,11 +9,12 @@ from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from app import master
 from app.config import Settings, get_settings
 from app.extract import UnsupportedFile, extract_text
 from app.llm.base import LLMError, LLMProvider
 from app.llm.providers import get_provider
-from app.models import AnalyzeRequest, AnalyzeResponse
+from app.models import AnalyzeRequest, AnalyzeResponse, EvidenceRequest, MasterCV
 from app.pipeline import tailor
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -41,7 +42,7 @@ def index() -> FileResponse:
 
 @app.get("/api/health")
 def health(settings: Settings = Depends(get_settings)) -> dict:
-    return {"status": "ok", "provider": settings.llm_provider}
+    return {"status": "ok", "provider": settings.llm_provider, "master_cv": settings.master_cv_enabled}
 
 
 @app.post("/api/extract")
@@ -69,3 +70,32 @@ def analyze(req: AnalyzeRequest, llm: LLMProvider = Depends(provider_dep),
         return tailor.run(req.cv_text, req.jd_text, llm)
     except LLMError as err:
         raise HTTPException(502, str(err)) from err
+
+
+def _master_settings(settings: Settings = Depends(get_settings)) -> Settings:
+    if not settings.master_cv_enabled:
+        raise HTTPException(404, "Master CV is disabled on this server")
+    return settings
+
+
+@app.get("/api/master", response_model=MasterCV)
+def get_master(settings: Settings = Depends(_master_settings)) -> MasterCV:
+    text = master.load(settings.master_cv_path)
+    return MasterCV(exists=text is not None, text=text or "")
+
+
+@app.put("/api/master", response_model=MasterCV)
+def put_master(body: MasterCV, settings: Settings = Depends(_master_settings)) -> MasterCV:
+    if len(body.text) < 50 or len(body.text) > settings.max_text_chars:
+        raise HTTPException(422, f"Master CV must be 50-{settings.max_text_chars} characters")
+    master.save(settings.master_cv_path, body.text)
+    return MasterCV(exists=True, text=master.load(settings.master_cv_path) or "")
+
+
+@app.post("/api/master/evidence", response_model=MasterCV)
+def add_evidence(body: EvidenceRequest, settings: Settings = Depends(_master_settings)) -> MasterCV:
+    try:
+        text = master.add_evidence(settings.master_cv_path, body.skill, body.evidence)
+    except ValueError as err:
+        raise HTTPException(422, str(err)) from err
+    return MasterCV(exists=True, text=text)

@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     max_output_tokens: int = 4096
     request_timeout_s: float = 90.0
 
+    # Private master CV (git-ignored). Turn off if you ever deploy this app for other people.
+    master_cv_enabled: bool = True
+    master_cv_path: str = "my_cv/master_cv.md"
+
     # Upload guard-rails
     max_upload_mb: float = 5.0
     max_text_chars: int = 30_000

@@ -13,8 +13,9 @@ JD = (SAMPLES / "sample_jd.txt").read_text()
 
 
 @pytest.fixture(autouse=True)
-def mock_provider(monkeypatch):
+def mock_provider(monkeypatch, tmp_path):
     monkeypatch.setenv("LLM_PROVIDER", "mock")
+    monkeypatch.setenv("MASTER_CV_PATH", str(tmp_path / "my_cv" / "master_cv.md"))
     from app.config import get_settings
 
     get_settings.cache_clear()
@@ -26,7 +27,7 @@ client = TestClient(app)
 
 
 def test_health_and_index():
-    assert client.get("/api/health").json() == {"status": "ok", "provider": "mock"}
+    assert client.get("/api/health").json() == {"status": "ok", "provider": "mock", "master_cv": True}
     assert "CV Tailor Agent" in client.get("/").text
 
 
@@ -63,3 +64,24 @@ def test_extract_txt_and_docx():
 def test_extract_rejects_unknown_type():
     r = client.post("/api/extract", files={"file": ("cv.exe", b"x" * 100, "application/octet-stream")})
     assert r.status_code == 415
+
+
+def test_master_cv_save_load_and_evidence():
+    assert client.get("/api/master").json() == {"exists": False, "text": ""}
+    assert client.put("/api/master", json={"text": CV}).status_code == 200
+    assert client.get("/api/master").json()["text"].startswith("Alex Morgan")
+
+    r = client.post("/api/master/evidence", json={"skill": "Kubernetes", "evidence": "Deployed two services on a k8s cluster"})
+    text = r.json()["text"]
+    assert "## Confirmed skills (added in CV Tailor)" in text and "- Kubernetes: Deployed two services" in text
+    client.post("/api/master/evidence", json={"skill": "AWS", "evidence": "Hosted the churn API on AWS EC2"})
+    text = client.get("/api/master").json()["text"]
+    assert text.count("## Confirmed skills") == 1 and text.index("Kubernetes") < text.index("AWS")
+
+    # confirmed skills now count as evidence: Kubernetes is no longer an honest gap
+    d = client.post("/api/analyze", json={"cv_text": text, "jd_text": JD}).json()
+    assert "Kubernetes" not in d["ats_after"]["must_have_missing"] + d["ats_after"]["nice_to_have_missing"]
+
+
+def test_master_cv_rejects_empty_evidence():
+    assert client.post("/api/master/evidence", json={"skill": "AWS", "evidence": "yes"}).status_code == 422

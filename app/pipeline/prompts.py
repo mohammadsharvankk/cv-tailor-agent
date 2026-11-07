@@ -34,7 +34,9 @@ Hard rules (a downstream fact-checker will flag violations):
   summary or skills, and not as "transferable to X" either. A related product is not the same skill
   (SQL Server is not PostgreSQL; AWS is not Azure). You MAY switch to the employer's wording
   for a skill the CV already shows under another name (e.g. "sklearn" -> "scikit-learn").
-- Rewrite every bullet from the most relevant 2 roles/projects (max 12 bullets). Keep each under 35 words.
+- The CV may be a long master CV. Pick the bullets most relevant to this job from ANY role or project
+  (max 12) and rewrite those. Keep each under 35 words. Prefer recent, quantified, job-relevant work.
+- Lines under "Confirmed skills" are evidence the candidate added; you may use them like any CV line.
 - skills_ordered: the CV's own skills, most job-relevant first, using the employer's wording where equivalent.
 - <keywords_to_use> lists the employer's exact phrases that the CV supports but doesn't use word for word.
   Use EVERY one of them verbatim at least once: in skills_ordered, the summary, or the bullet it best fits.

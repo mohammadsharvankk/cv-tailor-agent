@@ -9,3 +9,6 @@ __pycache__/
 Thumbs.db
 .vscode/
 .idea/
+
+# Private master CV - never commit
+my_cv/

@@ -101,3 +101,13 @@ class AnalyzeResponse(BaseModel):
     ats_after: ATSScore
     fact_flags: list[FactFlag]
     tailored_markdown: str
+
+
+class MasterCV(BaseModel):
+    exists: bool = True
+    text: str
+
+
+class EvidenceRequest(BaseModel):
+    skill: str = Field(min_length=1, max_length=80)
+    evidence: str = Field(min_length=10, max_length=300, description="One true sentence showing where you used it")

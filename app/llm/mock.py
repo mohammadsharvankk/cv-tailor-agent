@@ -68,7 +68,7 @@ class MockProvider(LLMProvider):
     # ---- step 2 -------------------------------------------------------
     def _parse_cv(self, user: str) -> dict:
         cv = _tag(user, "cv")
-        lines = [ln.rstrip() for ln in cv.splitlines() if ln.strip()]
+        lines = [re.sub(r"^#+\s*|\*\*", "", ln).rstrip() for ln in cv.splitlines() if ln.strip()]
         out = {"name": lines[0].strip() if lines else None, "headline": lines[1].strip() if len(lines) > 1 else None,
                "summary": None, "skills": find_skills(cv), "roles": [], "projects": [], "education": []}
         section, current = None, None
@@ -121,27 +121,28 @@ class MockProvider(LLMProvider):
     def _rewrite(self, user: str) -> dict:
         job, cv = json.loads(_tag(user, "job_json")), json.loads(_tag(user, "cv_json"))
         targets = job["must_have_skills"] + job["nice_to_have_skills"]
-        roles = (cv["roles"] + cv["projects"])[:2]
+        all_bullets = [b for r in cv["roles"] + cv["projects"] for b in r["bullets"]]
+        # most job-relevant bullets first, from any role or project
+        ranked = sorted(all_bullets, key=lambda b: -sum(supported(b, t) for t in targets))
         bullets = []
-        for r in roles:
-            for b in r["bullets"]:
-                hit = [t for t in targets if supported(b, t)]
-                text = b.rstrip(".")
-                # switch CV wording to the employer's for skills the bullet already shows
-                for t in hit:
-                    canon = canonical(t)
-                    # only swap to the employer's wording when it is the standard name (sklearn -> scikit-learn),
-                    # not when it is a looser synonym (ETL -> "data pipelines" would read badly)
-                    if not canon or canon.lower() != t.lower():
-                        continue
-                    for form in ([canon, *SKILL_ALIASES[canon]] if canon else []):
-                        if form.lower() != t.lower() and not literal_hit(text, t):
-                            text = re.sub(r"(?<![A-Za-z0-9])" + re.escape(form) + r"(?![A-Za-z0-9])", t, text,
-                                          count=1, flags=re.I)
-                has_metric = bool(re.search(r"\d", text))
-                rewritten = text if has_metric else f"{text}, improving [metric: e.g. % time saved or error rate]"
-                bullets.append({"original": b, "rewritten": rewritten + ".", "targets": hit,
-                                "needs_metric": not has_metric})
+        for b in ranked[:12]:
+            hit = [t for t in targets if supported(b, t)]
+            text = b.rstrip(".")
+            # switch CV wording to the employer's for skills the bullet already shows
+            for t in hit:
+                canon = canonical(t)
+                # only swap to the employer's wording when it is the standard name (sklearn -> scikit-learn),
+                # not when it is a looser synonym (ETL -> "data pipelines" would read badly)
+                if not canon or canon.lower() != t.lower():
+                    continue
+                for form in ([canon, *SKILL_ALIASES[canon]] if canon else []):
+                    if form.lower() != t.lower() and not literal_hit(text, t):
+                        text = re.sub(r"(?<![A-Za-z0-9])" + re.escape(form) + r"(?![A-Za-z0-9])", t, text,
+                                      count=1, flags=re.I)
+            has_metric = bool(re.search(r"\d", text))
+            rewritten = text if has_metric else f"{text}, improving [metric: e.g. % time saved or error rate]"
+            bullets.append({"original": b, "rewritten": rewritten + ".", "targets": hit,
+                            "needs_metric": not has_metric})
         bullets = bullets[:12]
         relevant = [s for s in cv["skills"] if any(canonical(t) == s for t in targets)]
         others = [s for s in cv["skills"] if s not in relevant]

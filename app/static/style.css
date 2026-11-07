@@ -78,3 +78,13 @@ footer a { color: var(--accent); }
 @media (max-width: 760px) { .inputs, .two { grid-template-columns: 1fr; } textarea { min-height: 200px; } }
 .kw { flex-basis: 100%; display: flex; flex-direction: column; gap: 6px; }
 .chip.miss { border-color: var(--bad); color: var(--bad); }
+.links { display: flex; gap: 14px; align-items: center; }
+button.link { border: 0; background: none; padding: 0; color: var(--accent); font-size: 13px; font-weight: 500; }
+.chip.miss.can { cursor: pointer; }
+.chip.miss.can:hover { background: var(--bad-bg); }
+.chip.added { border-color: var(--good); color: var(--good); text-decoration: line-through; }
+.evform { flex-basis: 100%; display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px dashed var(--line); border-radius: 8px; }
+.evform label { font-weight: 400; font-size: 14px; }
+.evrow { display: flex; gap: 8px; }
+.evrow input { flex: 1; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; background: var(--card); color: var(--ink); }
+.ok { flex-basis: 100%; margin: 0; color: var(--good); background: var(--good-bg); padding: 8px 12px; border-radius: 8px; font-size: 14px; }

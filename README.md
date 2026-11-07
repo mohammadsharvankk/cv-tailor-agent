@@ -63,6 +63,23 @@ flowchart LR
   with no API key and no cost.
 - **Privacy.** CVs are processed in memory and never stored. Nothing is logged except timings and counts.
 
+## Master CV workflow (getting to a high score honestly)
+
+A one-page CV can't list everything you've done, so jobs asking for skills you have but didn't
+fit on the page score low. The fix is a **master CV**: one long, private, truthful document.
+
+1. Paste your longest CV and click **Save as master CV**. It's stored in `my_cv/master_cv.md`,
+   which is git-ignored and never leaves your machine.
+2. For each job, click **Use master CV**, paste the posting and tailor. The rewrite picks the most
+   relevant bullets from any role or project.
+3. Under **Still missing**, click a skill you really have and add one sentence of evidence. It's
+   appended to the master CV under *Confirmed skills* and counts from the next run onwards.
+
+Each job you apply to makes the master CV more complete. Skills you don't have stay missing:
+that list is your learning plan, or a sign the job isn't a fit.
+
+Set `MASTER_CV_ENABLED=false` if you ever deploy the app for other people.
+
 ## Quick start
 
 ```bash
@@ -94,6 +111,8 @@ Interactive docs at `/docs` (OpenAPI / Swagger).
 |---|---|---|---|
 | `GET` | `/api/health` | – | provider in use |
 | `POST` | `/api/extract` | multipart file (`.pdf`, `.docx`, `.txt`, `.md`, ≤ 5 MB) | `{ "text": … }` |
+| `GET` / `PUT` | `/api/master` | `{ "text": … }` on PUT | your private master CV |
+| `POST` | `/api/master/evidence` | `{ "skill": …, "evidence": … }` | master CV with the new confirmed skill |
 | `POST` | `/api/analyze` | `{ "cv_text": …, "jd_text": … }` | job, CV, gaps, tailored CV, ATS before/after, fact flags, markdown |
 
 ```bash
@@ -109,6 +128,7 @@ app/
   config.py            settings from env / .env
   models.py            Pydantic contracts for every step
   extract.py           PDF / DOCX / TXT -> text
+  master.py            private master CV: load, save, add confirmed skills
   llm/
     base.py            provider interface, JSON extraction, validate-and-repair loop
     providers.py       Anthropic + OpenAI providers and factory
@@ -119,7 +139,7 @@ app/
     checks.py          ATS score, fact guard, markdown rendering
     skills.py          ~100 skills with aliases; literal vs alias-aware matching
   static/              single-page UI (HTML/CSS/vanilla JS) + sample CV and JD
-tests/                 19 pytest tests: checks, LLM retry logic, API end to end
+tests/                 21 pytest tests: checks, LLM retry logic, API end to end
 ```
 
 ## Testing

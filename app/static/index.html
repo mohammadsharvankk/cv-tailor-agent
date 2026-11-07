@@ -23,7 +23,11 @@
     <div class="field">
       <div class="label-row">
         <label for="cv">Your CV</label>
-        <label class="upload">Upload PDF / DOCX<input type="file" id="cvFile" accept=".pdf,.docx,.txt,.md" hidden></label>
+        <span class="links">
+          <button id="useMaster" class="link" hidden>Use master CV</button>
+          <button id="saveMaster" class="link" hidden>Save as master CV</button>
+          <label class="upload">Upload PDF / DOCX<input type="file" id="cvFile" accept=".pdf,.docx,.txt,.md" hidden></label>
+        </span>
       </div>
       <textarea id="cv" placeholder="Paste your CV text here, or upload a file…"></textarea>
     </div>
@@ -56,7 +60,16 @@
       <div class="score after"><span class="num" id="after">–</span><span class="cap">after tailoring</span></div>
       <p class="note">Share of the employer's exact skill wording found (must-haves weigh 70%). Wording only changes where your CV already shows the skill.</p>
       <div class="kw"><span class="cap">Keywords gained</span><div id="gained" class="chips"></div></div>
-      <div class="kw"><span class="cap">Still missing (not shown in your CV, so not added)</span><div id="missing" class="chips"></div></div>
+      <div class="kw"><span class="cap">Still missing (not shown in your CV, so not added)<span id="haveHint" hidden>. Click one you really have to add it to your master CV</span></span><div id="missing" class="chips"></div></div>
+      <form id="evForm" class="evform" hidden>
+        <label for="evText">Where have you really used <b id="evSkill"></b>? One true sentence. It's saved to your master CV and counts as evidence from now on.</label>
+        <div class="evrow">
+          <input id="evText" type="text" maxlength="300" placeholder="e.g. Wrote DAX measures for the EMEA KPI dashboards at Resideo">
+          <button type="submit" class="primary small">Add to master CV</button>
+          <button type="button" id="evCancel" class="ghost small">Cancel</button>
+        </div>
+      </form>
+      <p id="evDone" class="ok" hidden></p>
     </div>
 
     <div class="card">
