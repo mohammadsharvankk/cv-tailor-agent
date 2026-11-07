@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from app.models import ATSScore, FactFlag, JobRequirements, TailoredCV
+from app.models import ATSScore, FactFlag, GapAnalysis, JobRequirements, TailoredCV
 from app.pipeline.skills import find_skills, literal_hit, supported
 
 MUST_WEIGHT = 0.7
@@ -32,6 +32,33 @@ def ats_score(text: str, job: JobRequirements) -> ATSScore:
     )
 
 
+def _squash(text: str) -> str:
+    return re.sub(r"[^a-z0-9%+#/.]+", " ", text.lower()).strip()
+
+
+def evidence_backed(cv_text: str, gaps: GapAnalysis) -> set[str]:
+    """
+    Skills the gap analysis rated strong/partial AND whose quoted evidence really appears in the CV.
+    The quote is verified in code, so the LLM can't justify a skill with a made-up citation.
+    """
+    cv = _squash(cv_text)
+    backed = set()
+    for item in gaps.skills:
+        if item.status == "missing":
+            continue
+        quote = _squash(item.evidence or "")
+        if (len(quote) >= 12 and quote in cv) or supported(cv_text, item.skill):
+            backed.add(item.skill.lower())
+    return backed
+
+
+def keywords_to_use(cv_text: str, job: JobRequirements, backed: set[str]) -> list[str]:
+    """Employer phrases missing word-for-word from the CV, but which the CV demonstrably supports."""
+    before = ats_score(cv_text, job)
+    missing = before.must_have_missing + before.nice_to_have_missing
+    return [k for k in missing if k.lower() in backed or supported(cv_text, k)]
+
+
 _PLACEHOLDER = re.compile(r"\[[^\]]*\]")
 # 40%, 3.5x, $1.2M, 500+, 12k, 2019 ... ; ignores digits glued to letters like "S3", "GPT-4", "v2"
 _NUMBER = re.compile(r"(?<![A-Za-z0-9\-])[$£€]?\d[\d,]*(?:\.\d+)?\s?(?:%|x|k|K|m|M|bn|\+)?(?![A-Za-z0-9])")
@@ -46,11 +73,14 @@ def _numbers(text: str) -> set[str]:
     return out
 
 
-def fact_guard(cv_text: str, job: JobRequirements, tailored: TailoredCV) -> tuple[TailoredCV, list[FactFlag]]:
+def fact_guard(cv_text: str, job: JobRequirements, tailored: TailoredCV,
+               backed: set[str] | None = None) -> tuple[TailoredCV, list[FactFlag]]:
     """
     Flag rewritten bullets that contain numbers or skills not present in the original CV, and
     remove unsupported skills from the skills list outright (that list goes straight onto the CV).
+    `backed` holds employer phrases whose support was verified by `evidence_backed`.
     """
+    backed = backed or set()
     cv_numbers = _numbers(cv_text)
     flags: list[FactFlag] = []
 
@@ -67,16 +97,21 @@ def fact_guard(cv_text: str, job: JobRequirements, tailored: TailoredCV) -> tupl
 
     kept, dropped = [], []
     for s in tailored.skills_ordered:
-        (kept if supported(cv_text, s) else dropped).append(s)
+        (kept if supported(cv_text, s) or s.lower() in backed else dropped).append(s)
     for s in dropped:
         flags.append(FactFlag(bullet_index=-1, rewritten=s, issue="new_skill",
                               detail=f"Removed '{s}' from the skills list: not shown in your CV"))
     return tailored.model_copy(update={"skills_ordered": kept}), flags
 
 
+def tailored_text_for_scoring(md: str, job: JobRequirements) -> str:
+    """Remove the job title so that echoing it ("Machine Learning Engineer") can't count as a skill match."""
+    return re.sub(re.escape(job.title), " ", md, flags=re.I) if job.title else md
+
+
 def render_markdown(cv_name: str | None, tailored: TailoredCV, job: JobRequirements) -> str:
     lines = [f"# {cv_name or 'Tailored CV'}", f"**{tailored.headline}**", "", tailored.summary, "",
-             "## Skills", ", ".join(tailored.skills_ordered), "", f"## Tailored bullets for: {job.title}"]
+             "## Skills", ", ".join(tailored.skills_ordered), "", "## Experience highlights"]
     for b in tailored.bullets:
         lines.append(f"- {b.rewritten}")
     return "\n".join(lines) + "\n"

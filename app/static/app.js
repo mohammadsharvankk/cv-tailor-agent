@@ -64,6 +64,13 @@ $("go").onclick = async () => {
 function render(d) {
   $("before").textContent = Math.round(d.ats_before.score);
   $("after").textContent = Math.round(d.ats_after.score);
+  const hitsOf = (a) => [...a.must_have_hit, ...a.nice_to_have_hit];
+  const beforeHits = new Set(hitsOf(d.ats_before));
+  const gained = hitsOf(d.ats_after).filter((k) => !beforeHits.has(k));
+  const missing = [...d.ats_after.must_have_missing, ...d.ats_after.nice_to_have_missing];
+  $("gained").innerHTML = gained.map((k) => `<span class="chip hit">+ ${esc(k)}</span>`).join("") ||
+    "<span class='muted small'>None: your CV already used the employer's wording for every skill it supports.</span>";
+  $("missing").innerHTML = missing.map((k) => `<span class="chip miss">${esc(k)}</span>`).join("") || "<span class='muted small'>None</span>";
   $("role").textContent = `· ${d.job.title}`;
   $("fit").textContent = d.gaps.fit_summary;
   $("strengths").innerHTML = d.gaps.transferable_strengths.map((s) => `<li>${esc(s)}</li>`).join("") || "<li class='muted'>None listed</li>";

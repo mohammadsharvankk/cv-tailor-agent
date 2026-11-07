@@ -42,13 +42,17 @@ flowchart LR
 | 3 | Each requirement is marked strong / partial / missing, with a quote from the CV as evidence | LLM |
 | 4 | Bullets are rewritten in X-Y-Z form. Where there's no result, a `[metric: …]` placeholder is left for you to fill instead of a made-up number | LLM |
 | ✓ | **Fact guard:** any number or skill in the output that's missing from the original CV is flagged, and unsupported skills are removed from the skills list | Python |
-| ✓ | **ATS score:** literal match of the employer's exact skill wording, must-haves weighted 70% | Python |
+| ✓ | **ATS score:** literal match of the employer's exact skill wording, must-haves weighted 70%. The job title is excluded, so echoing it can't inflate the score | Python |
 
 ### Design decisions
 
 - **Two matching modes.** ATS systems match words literally, so the score uses the employer's exact
   phrase. The fact guard is alias-aware: if your CV says "sklearn", the tool may write
   "scikit-learn", the employer's wording. It won't add Kubernetes if you've never mentioned it.
+- **Keywords are computed, not left to the model.** Between steps 3 and 4, code works out which employer
+  phrases are missing word-for-word but supported by the CV (alias match, or a gap-analysis quote that is
+  verified to really appear in the CV). The rewrite must use those verbatim. A skill "justified" by a
+  quote that isn't in the CV is rejected.
 - **Structured output with self-repair.** Every LLM step must return JSON that validates against a
   Pydantic schema. If it doesn't, the validation error is sent back to the model once to fix
   (`app/llm/base.py`).
@@ -113,7 +117,7 @@ app/
     checks.py          ATS score, fact guard, markdown rendering
     skills.py          ~100 skills with aliases; literal vs alias-aware matching
   static/              single-page UI (HTML/CSS/vanilla JS) + sample CV and JD
-tests/                 15 pytest tests: checks, LLM retry logic, API end to end
+tests/                 16 pytest tests: checks, LLM retry logic, API end to end
 ```
 
 ## Testing

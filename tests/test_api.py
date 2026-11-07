@@ -40,7 +40,7 @@ def test_analyze_end_to_end():
     assert d["fact_flags"] == []  # the mock never invents facts
     assert all("Kubernetes" not in s for s in d["tailored"]["skills_ordered"])
     assert any(b["needs_metric"] for b in d["tailored"]["bullets"])
-    assert d["tailored_markdown"].startswith("# Alex Morgan")
+    assert d["tailored_markdown"].startswith("# Alex Morgan") and "Engineer" not in d["tailored_markdown"]
 
 
 def test_analyze_rejects_short_input():

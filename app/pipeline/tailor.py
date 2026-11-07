@@ -9,7 +9,14 @@ from concurrent.futures import ThreadPoolExecutor
 from app.llm.base import LLMProvider
 from app.models import AnalyzeResponse, CVProfile, GapAnalysis, JobRequirements, TailoredCV
 from app.pipeline import prompts as P
-from app.pipeline.checks import ats_score, fact_guard, render_markdown
+from app.pipeline.checks import (
+    ats_score,
+    evidence_backed,
+    fact_guard,
+    keywords_to_use,
+    render_markdown,
+    tailored_text_for_scoring,
+)
 
 log = logging.getLogger(__name__)
 
@@ -27,10 +34,13 @@ def run(cv_text: str, jd_text: str, llm: LLMProvider) -> AnalyzeResponse:
 
     job_json, cv_json = job.model_dump_json(), cv.model_dump_json()
     gaps = llm.complete_json(P.GAPS_SYSTEM, P.gaps_user(job_json, cv_json, cv_text), GapAnalysis, "gaps")
-    tailored = llm.complete_json(P.REWRITE_SYSTEM, P.rewrite_user(job_json, cv_json, gaps.model_dump_json()),
+    backed = evidence_backed(cv_text, gaps)
+    keywords = keywords_to_use(cv_text, job, backed)
+    log.info("asking rewrite to use %d missing-but-supported keywords", len(keywords))
+    tailored = llm.complete_json(P.REWRITE_SYSTEM, P.rewrite_user(job_json, cv_json, gaps.model_dump_json(), keywords),
                                  TailoredCV, "rewrite")
 
-    tailored, flags = fact_guard(cv_text, job, tailored)
+    tailored, flags = fact_guard(cv_text, job, tailored, backed)
     md = render_markdown(cv.name, tailored, job)
     log.info("pipeline finished in %.1fs with %d fact flags", time.perf_counter() - t0, len(flags))
 
@@ -41,7 +51,7 @@ def run(cv_text: str, jd_text: str, llm: LLMProvider) -> AnalyzeResponse:
         gaps=gaps,
         tailored=tailored,
         ats_before=ats_score(cv_text, job),
-        ats_after=ats_score(md + "\n" + cv_text, job),
+        ats_after=ats_score(tailored_text_for_scoring(md, job) + "\n" + cv_text, job),
         fact_flags=flags,
         tailored_markdown=md,
     )

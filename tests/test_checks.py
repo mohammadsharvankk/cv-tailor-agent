@@ -51,3 +51,31 @@ def test_fact_guard_flags_invented_number_and_skill():
     assert not any(f.bullet_index == 2 for f in flags)  # placeholders are fine
     assert "Kubernetes" not in cleaned.skills_ordered
     assert "scikit-learn" in cleaned.skills_ordered  # supported via the alias "sklearn"
+
+
+def test_rewrite_keywords_raise_ats_and_fake_evidence_is_rejected():
+    from app.models import GapAnalysis, SkillEvidence
+    from app.pipeline.checks import evidence_backed, keywords_to_use
+
+    cv = "Built a churn classifier in Python with pandas, reaching 0.84 ROC-AUC\nSkills: Python, pandas"
+    job = JobRequirements(title="MLE", must_have_skills=["Python", "classification models", "Kubernetes"])
+    gaps = GapAnalysis(fit_summary="x", skills=[
+        SkillEvidence(skill="classification models", status="strong", evidence="Built a churn classifier in Python"),
+        SkillEvidence(skill="Kubernetes", status="partial", evidence="Ran services on Kubernetes clusters"),  # fake quote
+    ])
+    backed = evidence_backed(cv, gaps)
+    assert "classification models" in backed
+    assert "kubernetes" not in backed  # its 'evidence' isn't in the CV
+
+    kws = keywords_to_use(cv, job, backed)
+    assert kws == ["classification models"]
+
+    tailored = TailoredCV(headline="h", summary="Python developer building classification models",
+                          skills_ordered=["Python", "classification models", "Kubernetes"])
+    cleaned, flags = fact_guard(cv, job, tailored, backed)
+    assert cleaned.skills_ordered == ["Python", "classification models"]
+    assert any("Kubernetes" in f.detail for f in flags)
+
+    before = ats_score(cv, job).score
+    after = ats_score(cleaned.summary + " " + ", ".join(cleaned.skills_ordered) + "\n" + cv, job).score
+    assert after > before

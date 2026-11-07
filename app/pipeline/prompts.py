@@ -4,7 +4,10 @@ PARSE_JD_SYSTEM = """You are a technical recruiter. Extract the structured requi
 Rules:
 - Copy skill names using the employer's exact wording (ATS systems match literally).
 - must_have_skills: things stated as required. nice_to_have_skills: "preferred", "bonus", "nice to have".
-- Keep each skill short (1-4 words). No duplicates. Do not invent requirements that are not in the text."""
+- Keep each skill a short keyword of 1-3 words, as a recruiter would type it into an ATS search
+  (e.g. "Python", "CI/CD", "classification models"). Split combined items: "Docker and CI/CD" -> "Docker", "CI/CD".
+  No parentheses, no qualifiers like "strong" or "experience with".
+- No duplicates. Do not invent requirements that are not in the text."""
 
 PARSE_CV_SYSTEM = """You are parsing a CV into structured data.
 Rules:
@@ -29,6 +32,9 @@ Hard rules (a downstream fact-checker will flag violations):
   for a skill the CV already shows under another name (e.g. "sklearn" -> "scikit-learn").
 - Rewrite every bullet from the most relevant 2 roles/projects (max 12 bullets). Keep each under 35 words.
 - skills_ordered: the CV's own skills, most job-relevant first, using the employer's wording where equivalent.
+- <keywords_to_use> lists the employer's exact phrases that the CV supports but doesn't use word for word.
+  Use EVERY one of them verbatim at least once: in skills_ordered, the summary, or the bullet it best fits.
+  Applicant tracking systems match literally, so this is the main way tailoring raises the match.
 - headline and summary: truthful, specific to this job, no clichés ("passionate", "results-driven")."""
 
 
@@ -44,5 +50,7 @@ def gaps_user(job_json: str, cv_json: str, cv_text: str) -> str:
     return f"<job_json>\n{job_json}\n</job_json>\n<cv_json>\n{cv_json}\n</cv_json>\n<cv>\n{cv_text}\n</cv>"
 
 
-def rewrite_user(job_json: str, cv_json: str, gaps_json: str) -> str:
-    return f"<job_json>\n{job_json}\n</job_json>\n<cv_json>\n{cv_json}\n</cv_json>\n<gaps_json>\n{gaps_json}\n</gaps_json>"
+def rewrite_user(job_json: str, cv_json: str, gaps_json: str, keywords: list[str]) -> str:
+    kw = "\n".join(keywords) or "(none)"
+    return (f"<job_json>\n{job_json}\n</job_json>\n<cv_json>\n{cv_json}\n</cv_json>\n"
+            f"<gaps_json>\n{gaps_json}\n</gaps_json>\n<keywords_to_use>\n{kw}\n</keywords_to_use>")

@@ -148,10 +148,12 @@ class MockProvider(LLMProvider):
         # use the employer's wording for equivalent skills
         wording = {canonical(t): t for t in targets if canonical(t)}
         ordered = [wording.get(s, s) for s in relevant + others]
+        kw = [k.strip() for k in _tag(user, "keywords_to_use").splitlines() if k.strip() and k.strip() != "(none)"]
+        ordered = list(dict.fromkeys(kw + ordered))  # employer phrases first, no duplicates
         top = ", ".join(ordered[:3])
         return {
-            "headline": f"{cv.get('headline') or 'Professional'} | targeting {job['title']}",
-            "summary": f"Background aligned to {job['title']}, with hands-on experience in {top}.",
+            "headline": cv.get("headline") or "Professional",
+            "summary": f"Hands-on experience in {top}, applied to production data problems.",
             "skills_ordered": ordered,
             "bullets": bullets,
         }
