@@ -3,7 +3,12 @@
 from __future__ import annotations
 
 from app.config import Settings, get_settings
-from app.llm.base import LLMError, LLMProvider
+from app.llm.base import LLMError, LLMProvider, TruncatedOutput
+
+
+def _truncated_msg(limit: int) -> str:
+    return (f"The model's reply was cut off at the {limit}-token output limit, usually because the CV is very long. "
+            f"Raise MAX_OUTPUT_TOKENS in .env (e.g. to {limit * 2}) and restart the server.")
 
 
 class AnthropicProvider(LLMProvider):
@@ -25,6 +30,8 @@ class AnthropicProvider(LLMProvider):
             max_tokens=self.s.max_output_tokens,
             messages=[{"role": "user", "content": user}],
         )
+        if getattr(msg, "stop_reason", None) == "max_tokens":
+            raise TruncatedOutput(_truncated_msg(self.s.max_output_tokens))
         return "".join(block.text for block in msg.content if getattr(block, "type", "") == "text")
 
 
@@ -49,6 +56,8 @@ class OpenAIProvider(LLMProvider):
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
             **extra,
         )
+        if resp.choices[0].finish_reason == "length":
+            raise TruncatedOutput(_truncated_msg(self.s.max_output_tokens))
         return resp.choices[0].message.content or ""
 
 

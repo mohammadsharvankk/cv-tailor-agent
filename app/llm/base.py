@@ -18,6 +18,10 @@ class LLMError(RuntimeError):
     """Raised when the model cannot produce valid output after retries."""
 
 
+class TruncatedOutput(LLMError):
+    """The model hit its output-token limit, so the JSON is incomplete. Retrying won't help."""
+
+
 def extract_json(text: str) -> str:
     """Pull the first JSON object out of a model reply (handles ```json fences and chatter)."""
     fenced = re.search(r"```(?:json)?\s*(\{.*\})\s*```", text, re.DOTALL)
@@ -47,6 +51,8 @@ class LLMProvider(ABC):
         for attempt in range(retries + 1):
             try:
                 raw = self._complete(sys_prompt, prompt) if self.name != "mock" else self._mock(task, user)
+            except TruncatedOutput as err:
+                raise TruncatedOutput(f"{err} (during '{task}')") from err
             except Exception as err:  # network, auth, rate limit, unknown model ... from the vendor SDK
                 raise LLMError(f"{self.name} API call failed during '{task}': {type(err).__name__}: {err}") from err
             try:

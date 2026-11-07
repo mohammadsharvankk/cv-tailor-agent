@@ -58,3 +58,25 @@ class BrokenProvider(LLMProvider):
 def test_vendor_errors_become_llm_errors():
     with pytest.raises(LLMError, match="network down"):
         BrokenProvider().complete_json("sys", "jd", JobRequirements, task="parse_jd")
+
+
+class CutOffProvider(LLMProvider):
+    name = "cutoff"
+
+    def __init__(self):
+        self.calls = 0
+
+    def _complete(self, system, user):
+        from app.llm.base import TruncatedOutput
+
+        self.calls += 1
+        raise TruncatedOutput("reply was cut off at the 4096-token output limit")
+
+
+def test_truncation_is_reported_clearly_and_not_retried():
+    from app.llm.base import TruncatedOutput
+
+    p = CutOffProvider()
+    with pytest.raises(TruncatedOutput, match="cut off.*parse_jd"):
+        p.complete_json("sys", "jd", JobRequirements, task="parse_jd")
+    assert p.calls == 1

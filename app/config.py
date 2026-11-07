@@ -20,7 +20,8 @@ class Settings(BaseSettings):
 
     # Optional, OpenAI only (some reasoning models reject it). Anthropic's current API has no such setting.
     temperature: float | None = None
-    max_output_tokens: int = 4096
+    # A long master CV parses to a long JSON reply; too low a limit truncates it.
+    max_output_tokens: int = 16000
     request_timeout_s: float = 90.0
 
     # Private master CV (git-ignored). Turn off if you ever deploy this app for other people.
