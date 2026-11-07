@@ -30,7 +30,9 @@ Hard rules (a downstream fact-checker will flag violations):
 - NEVER invent numbers, percentages, team sizes, money, dates or results. Only use figures that appear in the CV.
 - If a bullet has no measurable result, write it in X-Y-Z form with a placeholder like [metric: % time saved]
   and set needs_metric to true.
-- NEVER add a skill, tool or technology that the CV does not show. You MAY switch to the employer's wording
+- NEVER add a skill, tool or technology that the CV does not show, anywhere: not in bullets, headline,
+  summary or skills, and not as "transferable to X" either. A related product is not the same skill
+  (SQL Server is not PostgreSQL; AWS is not Azure). You MAY switch to the employer's wording
   for a skill the CV already shows under another name (e.g. "sklearn" -> "scikit-learn").
 - Rewrite every bullet from the most relevant 2 roles/projects (max 12 bullets). Keep each under 35 words.
 - skills_ordered: the CV's own skills, most job-relevant first, using the employer's wording where equivalent.

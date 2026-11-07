@@ -78,7 +78,7 @@ class ATSScore(BaseModel):
 
 
 class FactFlag(BaseModel):
-    bullet_index: int
+    bullet_index: int = Field(description="0-based bullet number; -1 = skills list, -2 = headline or summary")
     rewritten: str
     issue: Literal["new_number", "new_skill"]
     detail: str

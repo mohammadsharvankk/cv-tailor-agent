@@ -141,6 +141,13 @@ def fact_guard(cv_text: str, job: JobRequirements, tailored: TailoredCV,
                 flags.append(FactFlag(bullet_index=i, rewritten=b.rewritten, issue="new_skill",
                                       detail=f"'{skill}' is not shown anywhere in your CV"))
 
+    # Headline and summary go straight onto the CV too, so check them for new skills (index -2).
+    for field in (tailored.headline, tailored.summary):
+        for skill in find_skills(_PLACEHOLDER.sub(" ", field)):
+            if not supported(cv_text, skill) and skill.lower() not in backed:
+                flags.append(FactFlag(bullet_index=-2, rewritten=field, issue="new_skill",
+                                      detail=f"'{skill}' is not shown anywhere in your CV"))
+
     kept, dropped = [], []
     for s in tailored.skills_ordered:
         (kept if phrase_supported(cv_text, s) or s.lower() in backed else dropped).append(s)

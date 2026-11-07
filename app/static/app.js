@@ -82,7 +82,7 @@ function render(d) {
   const flags = d.fact_flags;
   $("flagsCard").hidden = flags.length === 0;
   $("flags").innerHTML = flags.map((f) =>
-    `<li>${f.bullet_index >= 0 ? `Bullet ${f.bullet_index + 1}: ` : "Skills list: "}<code>${esc(f.detail)}</code></li>`).join("");
+    `<li>${f.bullet_index >= 0 ? `Bullet ${f.bullet_index + 1}: ` : f.bullet_index === -1 ? "Skills list: " : "Headline/summary: "}<code>${esc(f.detail)}</code></li>`).join("");
 
   $("headline").textContent = d.tailored.headline;
   $("summary").textContent = d.tailored.summary;

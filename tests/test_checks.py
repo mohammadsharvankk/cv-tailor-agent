@@ -79,3 +79,21 @@ def test_rewrite_keywords_raise_ats_and_fake_evidence_is_rejected():
     before = ats_score(cv, job).score
     after = ats_score(cleaned.summary + " " + ", ".join(cleaned.skills_ordered) + "\n" + cv, job).score
     assert after > before
+
+
+def test_sibling_products_do_not_support_each_other():
+    cv = "Pulled data from three SQL Server databases and stored exports in S3"
+    assert supported(cv, "SQL") and supported(cv, "AWS")  # a child proves its parent
+    assert not supported(cv, "PostgreSQL")  # a sibling does not
+    assert not supported("Worked on AWS", "SageMaker")  # a parent does not prove a child
+
+
+def test_fact_guard_checks_summary_and_headline():
+    cv = "Built Python ETL scripts on SQL Server"
+    job = JobRequirements(title="Data Engineer", must_have_skills=["PostgreSQL"])
+    tailored = TailoredCV(headline="Data Engineer | Python, SQL",
+                          summary="SQL Server experience that carries over to PostgreSQL.",
+                          skills_ordered=["Python", "PostgreSQL"])
+    cleaned, flags = fact_guard(cv, job, tailored)
+    assert "PostgreSQL" not in cleaned.skills_ordered
+    assert any(f.bullet_index == -2 and "PostgreSQL" in f.detail for f in flags)

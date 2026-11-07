@@ -5,7 +5,7 @@
 It reads a job posting and a CV, assesses fit skill by skill, rewrites bullets in Google's
 X-Y-Z format ("accomplished X, as measured by Y, by doing Z"), and scores ATS keyword
 coverage before and after. A deterministic **fact guard** then checks every rewritten line
-against the original CV and flags any number or skill the model added.
+against the original CV (bullets, headline, summary and skills) and flags any number or skill the model added.
 
 ![CI](https://github.com/mohammadsharvankk/cv-tailor-agent/actions/workflows/ci.yml/badge.svg)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue) ![FastAPI](https://img.shields.io/badge/FastAPI-backend-009688)
@@ -49,6 +49,8 @@ flowchart LR
 - **Two matching modes.** ATS systems match words literally, so the score uses the employer's exact
   phrase. The fact guard is alias-aware: if your CV says "sklearn", the tool may write
   "scikit-learn", the employer's wording. It won't add Kubernetes if you've never mentioned it.
+- **Related products aren't the same skill.** Specific products imply their family but not each other:
+  "SQL Server" proves SQL, but not PostgreSQL; "S3" proves AWS, but "AWS" doesn't prove SageMaker.
 - **Keywords are computed, not left to the model.** Between steps 3 and 4, code works out which employer
   phrases are missing word-for-word but supported by the CV (alias match, or a gap-analysis quote that is
   verified to really appear in the CV). The rewrite must use those verbatim. A skill "justified" by a
@@ -117,7 +119,7 @@ app/
     checks.py          ATS score, fact guard, markdown rendering
     skills.py          ~100 skills with aliases; literal vs alias-aware matching
   static/              single-page UI (HTML/CSS/vanilla JS) + sample CV and JD
-tests/                 17 pytest tests: checks, LLM retry logic, API end to end
+tests/                 19 pytest tests: checks, LLM retry logic, API end to end
 ```
 
 ## Testing
