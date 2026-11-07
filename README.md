@@ -117,7 +117,7 @@ app/
     checks.py          ATS score, fact guard, markdown rendering
     skills.py          ~100 skills with aliases; literal vs alias-aware matching
   static/              single-page UI (HTML/CSS/vanilla JS) + sample CV and JD
-tests/                 16 pytest tests: checks, LLM retry logic, API end to end
+tests/                 17 pytest tests: checks, LLM retry logic, API end to end
 ```
 
 ## Testing

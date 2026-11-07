@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from difflib import SequenceMatcher
 
 from app.models import ATSScore, FactFlag, GapAnalysis, JobRequirements, TailoredCV
 from app.pipeline.skills import find_skills, literal_hit, supported
@@ -36,19 +37,64 @@ def _squash(text: str) -> str:
     return re.sub(r"[^a-z0-9%+#/.]+", " ", text.lower()).strip()
 
 
-def evidence_backed(cv_text: str, gaps: GapAnalysis) -> set[str]:
+def phrase_supported(cv_text: str, phrase: str) -> bool:
     """
-    Skills the gap analysis rated strong/partial AND whose quoted evidence really appears in the CV.
-    The quote is verified in code, so the LLM can't justify a skill with a made-up citation.
+    Alias-aware support for whole employer phrases. "classification models" is supported if every known
+    skill inside it is supported ("classification" <- "churn classifier"). A phrase with no known skill
+    inside it falls back to a literal match.
+    """
+    if supported(cv_text, phrase):
+        return True
+    parts = find_skills(phrase)
+    return bool(parts) and all(supported(cv_text, p) for p in parts)
+
+
+def _quote_in_cv(quote: str | None, cv_squashed: str) -> bool:
+    """True if the LLM's evidence quote really comes from the CV (tolerates '...' cuts and small edits)."""
+    if not quote:
+        return False
+    frags = [_squash(f) for f in re.split(r"\.{3}|…", quote)]
+    frags = [f for f in frags if len(f) >= 8]
+    if not frags:
+        return False
+    if all(f in cv_squashed for f in frags):
+        return True
+    words = _squash(quote).split()
+    grams = [" ".join(words[i : i + 3]) for i in range(len(words) - 2)]
+    return bool(grams) and sum(g in cv_squashed for g in grams) / len(grams) >= 0.8
+
+
+def _match_gap(skill: str, gaps: GapAnalysis):
+    """Find the gap-analysis item for a job skill, even if the model reworded the name slightly."""
+    target = _squash(skill)
+    best, best_ratio = None, 0.0
+    for item in gaps.skills:
+        name = _squash(item.skill)
+        if name == target:
+            return item
+        ratio = SequenceMatcher(None, name, target).ratio()
+        if target in name or name in target:
+            ratio = max(ratio, 0.9)
+        if ratio > best_ratio:
+            best, best_ratio = item, ratio
+    return best if best_ratio >= 0.75 else None
+
+
+def evidence_backed(cv_text: str, gaps: GapAnalysis, job: JobRequirements | None = None) -> set[str]:
+    """
+    Employer phrases (lower-case) the CV supports: alias-aware match, or a strong/partial rating whose
+    evidence quote is verified in code to come from the CV, so a made-up citation can't justify a skill.
     """
     cv = _squash(cv_text)
+    names = (job.must_have_skills + job.nice_to_have_skills) if job else [g.skill for g in gaps.skills]
     backed = set()
-    for item in gaps.skills:
-        if item.status == "missing":
+    for name in names:
+        if phrase_supported(cv_text, name):
+            backed.add(name.lower())
             continue
-        quote = _squash(item.evidence or "")
-        if (len(quote) >= 12 and quote in cv) or supported(cv_text, item.skill):
-            backed.add(item.skill.lower())
+        item = _match_gap(name, gaps)
+        if item and item.status != "missing" and _quote_in_cv(item.evidence, cv):
+            backed.add(name.lower())
     return backed
 
 
@@ -56,7 +102,7 @@ def keywords_to_use(cv_text: str, job: JobRequirements, backed: set[str]) -> lis
     """Employer phrases missing word-for-word from the CV, but which the CV demonstrably supports."""
     before = ats_score(cv_text, job)
     missing = before.must_have_missing + before.nice_to_have_missing
-    return [k for k in missing if k.lower() in backed or supported(cv_text, k)]
+    return [k for k in missing if k.lower() in backed]
 
 
 _PLACEHOLDER = re.compile(r"\[[^\]]*\]")
@@ -97,7 +143,7 @@ def fact_guard(cv_text: str, job: JobRequirements, tailored: TailoredCV,
 
     kept, dropped = [], []
     for s in tailored.skills_ordered:
-        (kept if supported(cv_text, s) or s.lower() in backed else dropped).append(s)
+        (kept if phrase_supported(cv_text, s) or s.lower() in backed else dropped).append(s)
     for s in dropped:
         flags.append(FactFlag(bullet_index=-1, rewritten=s, issue="new_skill",
                               detail=f"Removed '{s}' from the skills list: not shown in your CV"))
