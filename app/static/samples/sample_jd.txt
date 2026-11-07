@@ -1,0 +1,24 @@
+Machine Learning Engineer – Fintech Platform
+
+About the role
+We are looking for a Machine Learning Engineer to build and deploy models that detect payment fraud in real time.
+
+Responsibilities
+- Design, train and evaluate classification models on large transaction datasets
+- Build data pipelines and feature stores with Python and SQL
+- Deploy models as REST APIs using Docker and Kubernetes
+- Monitor model performance in production and run A/B testing on new models
+- Work closely with product and risk stakeholders
+
+Requirements
+- 3+ years of experience in data science or ML engineering
+- Strong Python, including pandas and scikit-learn
+- Solid SQL
+- Experience with Docker and CI/CD
+- Understanding of machine learning evaluation (precision, recall, ROC-AUC)
+
+Nice to have
+- Kubernetes
+- AWS
+- Experience with XGBoost or LightGBM
+- MLflow or similar experiment tracking

@@ -1,0 +1,28 @@
+Alex Morgan
+Data Analyst | Python, SQL, Dashboards
+
+Summary
+Data analyst with 4 years of experience turning operational data into reporting and simple predictive models.
+
+Experience
+Data Analyst | Northwind Logistics | Jan 2022 – Present
+- Built Python ETL scripts that pull shipment data from three SQL Server databases into a reporting warehouse
+- Created Power BI dashboards tracking on-time delivery KPIs for 12 regional managers
+- Trained a sklearn random forest to flag late shipments, cutting manual review time by 30%
+- Worked with operations stakeholders to define metrics and automate a weekly Excel report
+
+Junior Analyst | Contoso Retail | Jun 2020 – Dec 2021
+- Wrote SQL queries to analyse store sales and returns
+- Ran A/B tests on email campaigns and reported uplift to the marketing team
+- Maintained Git repositories for the analytics team's shared notebooks
+
+Projects
+Customer Churn Model | Personal project | 2023
+- Built a churn classifier in Python with pandas and XGBoost on a public telecom dataset, reaching 0.84 ROC-AUC
+- Deployed the model as a Flask REST API in a Docker container
+
+Education
+BSc Mathematics, University of Leeds, 2020
+
+Skills
+Python, pandas, scikit-learn, SQL, Power BI, Excel, Git, Docker, Flask, A/B testing

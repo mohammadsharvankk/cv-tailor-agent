@@ -1,0 +1,6 @@
+line-length = 130
+target-version = "py310"
+
+[lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["B008"]  # FastAPI's Depends()/File() defaults are the framework's intended pattern

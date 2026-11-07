@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CV Tailor Agent</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <span class="logo">✂</span>
+    <div>
+      <h1>CV Tailor Agent</h1>
+      <p>Match your CV to a job: honest gap analysis, X-Y-Z bullets, ATS score and a fact check.</p>
+    </div>
+  </div>
+  <span id="provider" class="badge">…</span>
+</header>
+
+<main>
+  <section class="inputs">
+    <div class="field">
+      <div class="label-row">
+        <label for="cv">Your CV</label>
+        <label class="upload">Upload PDF / DOCX<input type="file" id="cvFile" accept=".pdf,.docx,.txt,.md" hidden></label>
+      </div>
+      <textarea id="cv" placeholder="Paste your CV text here, or upload a file…"></textarea>
+    </div>
+    <div class="field">
+      <div class="label-row"><label for="jd">Job description</label></div>
+      <textarea id="jd" placeholder="Paste the full job posting here…"></textarea>
+    </div>
+    <div class="actions">
+      <button id="sample" class="ghost">Load sample</button>
+      <button id="go" class="primary">Tailor my CV</button>
+    </div>
+    <p id="error" class="error" hidden></p>
+  </section>
+
+  <section id="loading" class="loading" hidden>
+    <div class="spinner"></div>
+    <ol id="steps">
+      <li>Reading the job description</li>
+      <li>Parsing your CV</li>
+      <li>Analysing fit and gaps</li>
+      <li>Rewriting bullets (X-Y-Z)</li>
+      <li>Fact-checking against your CV</li>
+    </ol>
+  </section>
+
+  <section id="results" hidden>
+    <div class="card scores">
+      <div class="score"><span class="num" id="before">–</span><span class="cap">ATS match before</span></div>
+      <div class="arrow">→</div>
+      <div class="score after"><span class="num" id="after">–</span><span class="cap">after tailoring</span></div>
+      <p class="note">Share of the employer's exact skill wording found (must-haves weigh 70%). Wording only changes where your CV already shows the skill.</p>
+    </div>
+
+    <div class="card">
+      <h2>Fit summary <span class="role" id="role"></span></h2>
+      <p id="fit"></p>
+      <div class="two">
+        <div><h3>Transferable strengths</h3><ul id="strengths"></ul></div>
+        <div><h3>Honest gaps</h3><ul id="gaps"></ul></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Skill by skill</h2>
+      <table><thead><tr><th>Requirement</th><th>Status</th><th>Evidence from your CV</th></tr></thead><tbody id="skills"></tbody></table>
+    </div>
+
+    <div class="card" id="flagsCard" hidden>
+      <h2>⚠ Fact check</h2>
+      <p class="muted">These were added by the model but aren't in your CV. Fix or remove them before using the CV.</p>
+      <ul id="flags" class="flags"></ul>
+    </div>
+
+    <div class="card">
+      <div class="label-row">
+        <h2>Tailored CV content</h2>
+        <div class="btns"><button id="copy" class="ghost small">Copy markdown</button><button id="dl" class="ghost small">Download .md</button></div>
+      </div>
+      <h3>Headline</h3><p id="headline" class="strong"></p>
+      <h3>Summary</h3><p id="summary"></p>
+      <h3>Skills (most relevant first)</h3><div id="skillChips" class="chips"></div>
+      <h3>Bullets <span class="muted small">(click a bullet to see the original)</span></h3>
+      <ol id="bullets" class="bullets"></ol>
+    </div>
+  </section>
+</main>
+
+<footer>Built with FastAPI · Your CV is processed in memory and not stored. <a href="/docs">API docs</a></footer>
+<script src="/static/app.js"></script>
+</body>
+</html>
