@@ -10,6 +10,25 @@ from app.pipeline.skills import find_skills, literal_hit, supported
 
 MUST_WEIGHT = 0.7
 NICE_WEIGHT = 0.3
+MAX_SKILLS = 25
+
+_UNCONFIRMED = re.compile(r"\[\s*(confirm|verify|tbc|todo)\b[^\]]*\]", re.I)
+# "No banking, R or Spark experience is shown", "not yet used Hive", "lacks big-data exposure" ...
+_GAP = re.compile(
+    r"\b(no|not|lacks?|lacking|limited|minimal|yet to)\b[^.;]{0,80}?"
+    r"\b(experience|exposure|knowledge|background|shown|demonstrated)\b", re.I)
+_NOT_A_SKILL = re.compile(r"\b(degree|bachelor|master'?s|ph\.?d|ms/|msc|mba|years?|skills)\b", re.I)
+
+
+def strip_unconfirmed(cv_text: str) -> tuple[str, int]:
+    """Drop CV lines the candidate marked as unverified ([CONFIRM], [VERIFY], [TBC], [TODO])."""
+    lines = cv_text.splitlines()
+    kept = [ln for ln in lines if not _UNCONFIRMED.search(ln)]
+    return "\n".join(kept), len(lines) - len(kept)
+
+
+def mentions_gap(text: str) -> bool:
+    return bool(_GAP.search(text))
 
 
 def ats_score(text: str, job: JobRequirements) -> ATSScore:
@@ -141,6 +160,22 @@ def fact_guard(cv_text: str, job: JobRequirements, tailored: TailoredCV,
                 flags.append(FactFlag(bullet_index=i, rewritten=b.rewritten, issue="new_skill",
                                       detail=f"'{skill}' is not shown anywhere in your CV"))
 
+    # A CV never admits gaps. Remove such sentences from the summary (and flag them); flag them elsewhere.
+    sentences = re.split(r"(?<=[.!?])\s+", tailored.summary.strip())
+    gap_sents = [x for x in sentences if mentions_gap(x)]
+    if gap_sents:
+        tailored = tailored.model_copy(update={"summary": " ".join(x for x in sentences if x not in gap_sents)})
+        for x in gap_sents:
+            flags.append(FactFlag(bullet_index=-2, rewritten=x, issue="gap_mention",
+                                  detail=f"Removed from the summary because it points out a gap: '{x}'"))
+    if mentions_gap(tailored.headline):
+        flags.append(FactFlag(bullet_index=-2, rewritten=tailored.headline, issue="gap_mention",
+                              detail="The headline points out a gap. A CV should only state what you have"))
+    for i, b in enumerate(tailored.bullets):
+        if mentions_gap(_PLACEHOLDER.sub(" ", b.rewritten)) and not mentions_gap(b.original):
+            flags.append(FactFlag(bullet_index=i, rewritten=b.rewritten, issue="gap_mention",
+                                  detail="This bullet points out a gap. Rephrase it to state what you did"))
+
     # Headline and summary go straight onto the CV too, so check them for new skills (index -2).
     for field in (tailored.headline, tailored.summary):
         for skill in find_skills(_PLACEHOLDER.sub(" ", field)):
@@ -148,13 +183,17 @@ def fact_guard(cv_text: str, job: JobRequirements, tailored: TailoredCV,
                 flags.append(FactFlag(bullet_index=-2, rewritten=field, issue="new_skill",
                                       detail=f"'{skill}' is not shown anywhere in your CV"))
 
+    # Degrees, years and soft skills aren't skills; drop them silently, then cap the list.
+    not_skills = {x.lower() for x in job.qualifications + job.soft_skills}
+    candidates = [s for s in dict.fromkeys(tailored.skills_ordered)
+                  if s.lower() not in not_skills and not _NOT_A_SKILL.search(s)]
     kept, dropped = [], []
-    for s in tailored.skills_ordered:
+    for s in candidates:
         (kept if phrase_supported(cv_text, s) or s.lower() in backed else dropped).append(s)
     for s in dropped:
         flags.append(FactFlag(bullet_index=-1, rewritten=s, issue="new_skill",
                               detail=f"Removed '{s}' from the skills list: not shown in your CV"))
-    return tailored.model_copy(update={"skills_ordered": kept}), flags
+    return tailored.model_copy(update={"skills_ordered": kept[:MAX_SKILLS]}), flags
 
 
 def tailored_text_for_scoring(md: str, job: JobRequirements) -> str:

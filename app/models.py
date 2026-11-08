@@ -10,8 +10,11 @@ class JobRequirements(BaseModel):
     title: str = Field(description="Job title as written in the posting")
     company: str | None = None
     seniority: Literal["intern", "junior", "mid", "senior", "lead", "unknown"] = "unknown"
-    must_have_skills: list[str] = Field(default_factory=list, description="Hard requirements: tools, languages, methods")
-    nice_to_have_skills: list[str] = Field(default_factory=list)
+    must_have_skills: list[str] = Field(default_factory=list, description="Required hard skills: tools, languages, methods")
+    nice_to_have_skills: list[str] = Field(default_factory=list, description="Preferred hard skills")
+    qualifications: list[str] = Field(default_factory=list,
+                                      description="Degrees, years of experience, certifications, licences")
+    soft_skills: list[str] = Field(default_factory=list, description="e.g. 'communication', 'problem-solving skills'")
     responsibilities: list[str] = Field(default_factory=list)
     domain_keywords: list[str] = Field(default_factory=list, description="Industry or domain terms, e.g. 'fintech', 'CI/CD'")
     years_experience: float | None = None
@@ -80,8 +83,25 @@ class ATSScore(BaseModel):
 class FactFlag(BaseModel):
     bullet_index: int = Field(description="0-based bullet number; -1 = skills list, -2 = headline or summary")
     rewritten: str
-    issue: Literal["new_number", "new_skill"]
+    issue: Literal["new_number", "new_skill", "gap_mention"]
     detail: str
+
+
+# ---------- Step 5: independent review ----------
+
+class ReviewIssue(BaseModel):
+    location: str = Field(description="Where: 'headline', 'summary', 'skills' or 'bullet N' (1-based)")
+    kind: Literal["unsupported_claim", "gap_mention", "keyword_stuffing", "weak_bullet", "irrelevant",
+                  "generic", "other"]
+    problem: str
+    fix: str = Field(description="Concrete instruction for the writer, using only facts in the original CV")
+
+
+class Review(BaseModel):
+    verdict: Literal["ready", "revise"]
+    score: int = Field(ge=1, le=10, description="How ready this CV content is to send for THIS job")
+    strengths: list[str] = Field(default_factory=list)
+    issues: list[ReviewIssue] = Field(default_factory=list)
 
 
 # ---------- API payloads ----------
@@ -101,6 +121,10 @@ class AnalyzeResponse(BaseModel):
     ats_after: ATSScore
     fact_flags: list[FactFlag]
     tailored_markdown: str
+    review: Review | None = None
+    revision: Literal["off", "not_needed", "accepted", "rejected", "failed"] = "off"
+    revision_note: str | None = None
+    unconfirmed_lines_skipped: int = 0
 
 
 class MasterCV(BaseModel):

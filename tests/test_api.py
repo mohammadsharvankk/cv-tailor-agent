@@ -27,7 +27,8 @@ client = TestClient(app)
 
 
 def test_health_and_index():
-    assert client.get("/api/health").json() == {"status": "ok", "provider": "mock", "master_cv": True}
+    assert client.get("/api/health").json() == {"status": "ok", "provider": "mock", "master_cv": True,
+                                                 "review": True}
     assert "CV Tailor Agent" in client.get("/").text
 
 
@@ -42,6 +43,18 @@ def test_analyze_end_to_end():
     assert all("Kubernetes" not in s for s in d["tailored"]["skills_ordered"])
     assert any(b["needs_metric"] for b in d["tailored"]["bullets"])
     assert d["tailored_markdown"].startswith("# Alex Morgan") and "Engineer" not in d["tailored_markdown"]
+    # the reviewer ran, flagged the [metric] placeholders, and the (unchanged) mock revision was accepted
+    assert d["review"]["verdict"] == "revise" and d["review"]["issues"][0]["kind"] == "weak_bullet"
+    assert d["revision"] == "accepted"
+
+
+def test_review_can_be_turned_off(monkeypatch):
+    monkeypatch.setenv("REVIEW_ENABLED", "false")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    d = client.post("/api/analyze", json={"cv_text": CV, "jd_text": JD}).json()
+    assert d["review"] is None and d["revision"] == "off"
 
 
 def test_analyze_rejects_short_input():

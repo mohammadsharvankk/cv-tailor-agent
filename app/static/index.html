@@ -50,6 +50,8 @@
       <li>Analysing fit and gaps</li>
       <li>Rewriting bullets (X-Y-Z)</li>
       <li>Fact-checking against your CV</li>
+      <li>Independent review</li>
+      <li>Revising after review</li>
     </ol>
   </section>
 
@@ -70,6 +72,16 @@
         </div>
       </form>
       <p id="evDone" class="ok" hidden></p>
+      <p id="skipped" class="note" hidden></p>
+    </div>
+
+    <div class="card" id="reviewCard" hidden>
+      <h2>Reviewer <span class="role" id="revScore"></span></h2>
+      <p id="revNote" class="revnote"></p>
+      <div class="two">
+        <div><h3>What works</h3><ul id="revStrengths"></ul></div>
+        <div><h3>Issues raised on the first draft</h3><ul id="revIssues" class="issues"></ul></div>
+      </div>
     </div>
 
     <div class="card">
@@ -88,7 +100,7 @@
 
     <div class="card" id="flagsCard" hidden>
       <h2>⚠ Fact check</h2>
-      <p class="muted">These were added by the model but aren't in your CV. Fix or remove them before using the CV.</p>
+      <p class="muted">What the automatic checker found. Items starting with "Removed" were already fixed for you; fix or delete the rest before using the CV.</p>
       <ul id="flags" class="flags"></ul>
     </div>
 

@@ -85,6 +85,10 @@ function render(d) {
   $("skills").innerHTML = d.gaps.skills.map((s) =>
     `<tr><td>${esc(s.skill)}</td><td><span class="pill ${s.status}">${s.status}</span></td><td class="ev">${esc(s.evidence || "–")}</td></tr>`).join("");
 
+  renderReview(d);
+  $("skipped").hidden = !d.unconfirmed_lines_skipped;
+  $("skipped").textContent = `Skipped ${d.unconfirmed_lines_skipped} CV line(s) marked [CONFIRM] / [VERIFY]: confirm them in your master CV to use them.`;
+
   const flags = d.fact_flags;
   $("flagsCard").hidden = flags.length === 0;
   $("flags").innerHTML = flags.map((f) =>
@@ -105,6 +109,26 @@ function render(d) {
   lastMarkdown = d.tailored_markdown;
   $("results").hidden = false;
   $("results").scrollIntoView({ behavior: "smooth" });
+}
+
+const REVISION_TEXT = {
+  accepted: "Revised after review",
+  not_needed: "The reviewer found nothing to fix",
+  rejected: "Kept the first draft",
+  failed: "Review unavailable",
+};
+
+function renderReview(d) {
+  const r = d.review;
+  $("reviewCard").hidden = !r && d.revision !== "failed";
+  if ($("reviewCard").hidden) return;
+  $("revScore").textContent = r ? `· ${r.score}/10 on the first draft` : "";
+  $("revNote").textContent = d.revision_note || REVISION_TEXT[d.revision] || "";
+  $("revNote").classList.toggle("warn", d.revision === "rejected" || d.revision === "failed");
+  $("revStrengths").innerHTML = (r?.strengths || []).map((s) => `<li>${esc(s)}</li>`).join("") || "<li class='muted'>–</li>";
+  $("revIssues").innerHTML = (r?.issues || []).map((i) =>
+    `<li><span class="kind">${esc(i.kind.replace("_", " "))}</span><b>${esc(i.location)}:</b> ${esc(i.problem)}<span class="fix">Fix: ${esc(i.fix)}</span></li>`
+  ).join("") || "<li class='muted'>None</li>";
 }
 
 $("copy").onclick = async () => {

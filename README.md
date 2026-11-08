@@ -32,8 +32,12 @@ flowchart LR
     B --> C
     C --> D[4. Rewrite<br/>X-Y-Z bullets, headline, summary]
     D --> E{Fact guard<br/>deterministic}
-    E --> F[ATS score before / after]
-    E --> G[Flags for invented numbers or skills]
+    E --> R[5. Independent review<br/>hiring-manager critique]
+    R -->|revise| V[6. One revision]
+    V --> K{Keep only if not worse<br/>flags and ATS}
+    R -->|ready| F[ATS score before / after]
+    K --> F
+    K --> G[Flags for invented numbers, skills or gap admissions]
 ```
 
 | Step | What happens | Who does it |
@@ -41,7 +45,9 @@ flowchart LR
 | 1-2 | JD and CV are turned into typed JSON (Pydantic models). These two calls run **in parallel**. | LLM |
 | 3 | Each requirement is marked strong / partial / missing, with a quote from the CV as evidence | LLM |
 | 4 | Bullets are rewritten in X-Y-Z form. Where there's no result, a `[metric: …]` placeholder is left for you to fill instead of a made-up number | LLM |
-| ✓ | **Fact guard:** any number or skill in the output that's missing from the original CV is flagged, and unsupported skills are removed from the skills list | Python |
+| ✓ | **Fact guard:** any number or skill in the output that's missing from the original CV is flagged, and unsupported skills are removed from the skills list. Sentences that admit a gap ("no Spark experience") are removed from the summary, degrees and soft skills are kept out of the skills list, and it's capped at 25 | Python |
+| 5 | **Independent review:** a second call acting as the hiring manager sees only the raw posting, the original CV and the tailored content (not the writer's prompts or reasoning). It scores the draft and lists concrete issues: unsupported claims, keyword stuffing, weak or irrelevant bullets, generic summary | LLM |
+| 6 | **One revision**, using the reviewer's notes. Code then re-runs the fact guard and the ATS score and **keeps the revision only if it isn't worse**: no new open fact flags, and the ATS match drops by no more than 5 points. Otherwise the first draft wins | LLM + Python |
 | ✓ | **ATS score:** literal match of the employer's exact skill wording, must-haves weighted 70%. The job title is excluded, so echoing it can't inflate the score | Python |
 
 ### Design decisions
@@ -61,6 +67,11 @@ flowchart LR
 - **Provider-agnostic.** Anthropic and OpenAI sit behind one small interface, chosen with an
   environment variable. A rule-based **mock provider** makes the whole app, the tests and CI run
   with no API key and no cost.
+- **Reviewer can't overrule the facts.** An LLM critic can talk a writer into "improving" a bullet with
+  a made-up number. So the reviewer only advises; the deterministic checks decide whether the revision is
+  kept. If the review call fails, you still get the first draft.
+- **Unverified lines are skipped.** Lines in your CV marked `[CONFIRM]`, `[VERIFY]`, `[TBC]` or `[TODO]`
+  are removed before anything is sent to the model, so a claim you haven't confirmed can't reach a CV.
 - **Privacy.** CVs are processed in memory and never stored. Nothing is logged except timings and counts.
 
 ## Master CV workflow (getting to a high score honestly)
@@ -134,12 +145,12 @@ app/
     providers.py       Anthropic + OpenAI providers and factory
     mock.py            rule-based provider for tests and offline demo
   pipeline/
-    tailor.py          the 4-step workflow (steps 1-2 in parallel)
+    tailor.py          the workflow: steps 1-2 in parallel, rewrite, review, guarded revision
     prompts.py         system prompts with hard anti-fabrication rules
     checks.py          ATS score, fact guard, markdown rendering
     skills.py          ~100 skills with aliases; literal vs alias-aware matching
   static/              single-page UI (HTML/CSS/vanilla JS) + sample CV and JD
-tests/                 22 pytest tests: checks, LLM retry logic, API end to end
+tests/                 33 pytest tests: checks, LLM retry logic, reviewer loop, API end to end
 ```
 
 ## Testing

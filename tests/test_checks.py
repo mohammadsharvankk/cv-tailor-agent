@@ -97,3 +97,40 @@ def test_fact_guard_checks_summary_and_headline():
     cleaned, flags = fact_guard(cv, job, tailored)
     assert "PostgreSQL" not in cleaned.skills_ordered
     assert any(f.bullet_index == -2 and "PostgreSQL" in f.detail for f in flags)
+
+
+def test_verb_embedding_is_not_the_embeddings_skill():
+    assert "Embeddings" not in find_skills("Embedding anomaly detection into Jenkins CI/CD pipelines")
+    assert "Embeddings" in find_skills("Built a search index with text embeddings")
+
+
+def test_gap_sentences_are_removed_from_summary():
+    job = JobRequirements(title="DA", must_have_skills=["Python", "Apache Spark", "R"])
+    t = TailoredCV(headline="Data Analyst", summary="Builds ETL in Python and SQL. No banking, R or Spark experience "
+                   "is shown.", skills_ordered=["Python"], bullets=[])
+    out, flags = fact_guard(CV, job, t)
+    assert out.summary == "Builds ETL in Python and SQL."
+    assert [f.issue for f in flags] == ["gap_mention"]  # and no false 'Apache Spark' new_skill flag
+    # the removed sentence can't earn ATS points for R or Spark
+    assert ats_score(out.summary + " " + CV, job).must_have_missing == ["Apache Spark", "R"]
+
+
+def test_skills_list_drops_degrees_and_soft_skills_and_is_capped():
+    job = JobRequirements(title="DA", must_have_skills=["Python"], qualifications=["Advanced degree", "MS/Ph.D"],
+                          soft_skills=["analytical skills"])
+    many = [f"Python{i}" for i in range(40)]
+    cv = CV + "\nSkills: " + ", ".join(many)
+    t = TailoredCV(headline="h", summary="s", bullets=[],
+                   skills_ordered=["Python", "Advanced degree", "MS/Ph.D", "analytical skills", "University degree",
+                                   *many])
+    out, flags = fact_guard(cv, job, t)
+    assert out.skills_ordered[0] == "Python" and len(out.skills_ordered) == 25
+    assert not {"Advanced degree", "MS/Ph.D", "analytical skills", "University degree"} & set(out.skills_ordered)
+    assert flags == []
+
+
+def test_unconfirmed_lines_are_skipped():
+    from app.pipeline.checks import strip_unconfirmed
+
+    text, n = strip_unconfirmed("A\n- Built flaky-test ML model [CONFIRM scope]\n- Ran A/B tests [verify]\nB")
+    assert text == "A\nB" and n == 2

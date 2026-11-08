@@ -69,7 +69,7 @@ SKILL_ALIASES: dict[str, list[str]] = {
     "OpenAI API": ["openai", "gpt-4", "gpt"],
     "Anthropic API": ["anthropic", "claude"],
     "Vector Databases": ["vector database", "vector db", "vector store", "vector stores"],
-    "Embeddings": ["embedding"],
+    "Embeddings": ["vector embeddings", "text embeddings", "word embeddings"],  # not "embedding" (a verb)
     "AI Agents": ["agents", "agentic", "ai agent"],
     # data engineering
     "ETL": ["elt", "data pipelines", "data pipeline"],

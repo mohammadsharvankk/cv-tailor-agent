@@ -158,3 +158,20 @@ class MockProvider(LLMProvider):
             "skills_ordered": ordered,
             "bullets": bullets,
         }
+
+    # ---- step 5: review and revision ------------------------------------
+    def _review(self, user: str) -> dict:
+        tailored = json.loads(_tag(user, "tailored_json"))
+        flags = json.loads(_tag(user, "auto_fact_flags") or "[]")
+        issues = [{"location": f"bullet {i + 1}", "kind": "weak_bullet",
+                   "problem": "The result is a placeholder, not a real figure.",
+                   "fix": "Fill in the [metric] with a real number from your own records, or drop the clause."}
+                  for i, b in enumerate(tailored["bullets"]) if b.get("needs_metric")][:5]
+        issues += [{"location": "skills" if f["bullet_index"] == -1 else "summary", "kind": "unsupported_claim",
+                    "problem": f["detail"], "fix": "Remove it."} for f in flags][:3]
+        return {"verdict": "revise" if issues else "ready", "score": max(3, 9 - len(issues)),
+                "strengths": ["Bullets keep the original facts."], "issues": issues}
+
+    def _revise(self, user: str) -> dict:
+        # The rule-based mock can't invent real metrics, so it hands back its draft unchanged.
+        return json.loads(_tag(user, "draft_json"))

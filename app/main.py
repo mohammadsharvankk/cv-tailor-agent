@@ -42,7 +42,8 @@ def index() -> FileResponse:
 
 @app.get("/api/health")
 def health(settings: Settings = Depends(get_settings)) -> dict:
-    return {"status": "ok", "provider": settings.llm_provider, "master_cv": settings.master_cv_enabled}
+    return {"status": "ok", "provider": settings.llm_provider, "master_cv": settings.master_cv_enabled,
+            "review": settings.review_enabled}
 
 
 @app.post("/api/extract")
@@ -67,7 +68,7 @@ def analyze(req: AnalyzeRequest, llm: LLMProvider = Depends(provider_dep),
     if len(req.cv_text) > settings.max_text_chars or len(req.jd_text) > settings.max_text_chars:
         raise HTTPException(413, f"Each text must be under {settings.max_text_chars} characters")
     try:
-        return tailor.run(req.cv_text, req.jd_text, llm)
+        return tailor.run(req.cv_text, req.jd_text, llm, review=settings.review_enabled)
     except LLMError as err:
         raise HTTPException(502, str(err)) from err
 
