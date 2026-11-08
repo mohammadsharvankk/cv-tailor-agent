@@ -6,9 +6,9 @@ import docx
 from fastapi.testclient import TestClient
 from pypdf import PdfReader
 
-from app.export import assemble, clean_placeholders, export, split_education
+from app.export import assemble, clean_placeholders, export, to_edu
 from app.main import app
-from app.models import BulletRewrite, CVProfile, CVRole, JobRequirements, TailoredCV
+from app.models import BulletRewrite, CVProfile, CVRole, EducationItem, JobRequirements, TailoredCV
 
 JOB = JobRequirements(title="Data Analyst – Banking", must_have_skills=["Python", "SQL", "Tableau"])
 
@@ -52,9 +52,24 @@ def test_bullets_go_back_under_their_own_role():
 
 
 def test_education_line_split():
-    assert split_education("MSc Data Science | University of Birmingham Dubai | Sep 2025 – Sep 2026") == (
-        "MSc Data Science", "University of Birmingham Dubai", "Sep 2025 – Sep 2026")
-    assert split_education("BSc Mathematics, University of Leeds, 2020") == ("BSc Mathematics", "University of Leeds", "2020")
+    e = to_edu(EducationItem(degree="MSc Data Science, University of Birmingham Dubai, Sep 2025 – Sep 2026, "
+                                    "Distinction, overall 83.7%"))
+    assert (e.degree, e.institution, e.dates, e.details) == (
+        "MSc Data Science", "University of Birmingham Dubai", "Sep 2025 – Sep 2026", "Distinction, overall 83.7%")
+    e = to_edu(EducationItem(degree="BSc Mathematics, University of Leeds, 2020"))
+    assert (e.degree, e.institution, e.dates) == ("BSc Mathematics", "University of Leeds", "2020")
+
+
+def test_promotions_at_one_employer_share_a_block():
+    cv = CVProfile(name="S", roles=[
+        CVRole(title="Senior Engineer", organisation="Resideo", location="Bangalore, India", dates="2023 – 2025",
+               bullets=["Built Python ETL pipelines feeding Tableau dashboards"]),
+        CVRole(title="Engineer", organisation="Resideo", dates="2019 – 2023", bullets=[]),
+        CVRole(title="Intern", organisation="Infosys", dates="2019", bullets=["Trained in Python"])])
+    doc, _ = assemble(cv, TailoredCV(headline="h", summary="s", skills_ordered=[], bullets=[]))
+    assert [r.titles for r in doc.roles] == [[("Senior Engineer", "2023 – 2025"), ("Engineer", "2019 – 2023")],
+                                             [("Intern", "2019")]]
+    assert doc.roles[0].location == "Bangalore, India" and doc.roles[0].bullets  # filler from the block
 
 
 def _pdf_text(data):
@@ -108,3 +123,18 @@ def test_export_endpoint_end_to_end(monkeypatch):
     n, text = _pdf_text(r.content)
     assert "Jan 2022 – Present" in text and "Northwind Logistics" in text
     get_settings.cache_clear()
+
+
+def test_short_cv_asked_for_two_pages_stays_on_one():
+    cv = _cv(n_roles=2, n_bullets=2)
+    data, _, rep = export(cv, JOB, _tailored(cv, [(0, 0)]), "pdf", pages=2)
+    assert rep.pages == 1 and any("fits on one page" in w for w in rep.warnings)
+
+
+def test_cutting_never_leaves_a_job_empty():
+    cv = _cv(n_roles=8, n_bullets=6)
+    picks = [(r, b) for b in range(5) for r in range(8)]
+    doc_pdf, _, rep = export(cv, JOB, _tailored(cv, picks), "pdf", pages=1)
+    _, text = _pdf_text(doc_pdf)
+    for r in range(8):  # every role keeps at least its most relevant bullet
+        assert f"Tailored {r}.0" in text

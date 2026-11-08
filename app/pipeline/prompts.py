@@ -19,7 +19,9 @@ Rules:
 - Put every experience bullet under the role it belongs to; put personal/academic projects under projects.
 - skills: every tool, language or method the CV explicitly names.
 - contact: the candidate's email, phone, location and profile links exactly as written, joined with " · ".
-- education: one string per qualification, verbatim (degree, institution, dates, grade)."""
+- roles and projects: put the city/country (or "Remote") in location, not inside organisation.
+- education: one item per qualification: degree, institution, location, dates, and everything else
+  (grade, honours, conferral date) in details, verbatim."""
 
 GAPS_SYSTEM = """You are a candid career coach assessing fit between a CV and a job.
 Rules:
@@ -52,6 +54,8 @@ Hard rules (a downstream fact-checker will flag violations):
   anything the candidate lacks ("no Spark experience", "not yet used R"), anywhere.
 - Degrees belong in the education section, not in headline, skills_ordered or bullets. Never describe
   the candidate's degree in the employer's requirement wording ("sits at the MS/Ph.D tier").
+- skill_groups: the same skills as skills_ordered, split into 3-5 groups with short labels that suit this
+  job (e.g. "Languages & Databases", "Data & BI", "Machine Learning", "Tools"). Each skill in exactly one group.
 - skills_ordered: at most 25 items, hard skills only (tools, languages, methods). No soft skills,
   spoken languages, degrees or job-requirement phrases.
 - Write naturally. Never bolt a keyword onto a bullet ("..., applying problem-solving skills"). Soft skills

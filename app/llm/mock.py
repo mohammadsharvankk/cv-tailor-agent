@@ -161,6 +161,7 @@ class MockProvider(LLMProvider):
             "headline": cv.get("headline") or "Professional",
             "summary": f"Hands-on experience in {top}, applied to production data problems.",
             "skills_ordered": ordered,
+            "skill_groups": [{"name": "Core", "skills": ordered[:8]}, {"name": "Tools", "skills": ordered[8:]}],
             "bullets": bullets,
         }
 

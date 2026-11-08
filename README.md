@@ -59,9 +59,11 @@ After tailoring, **Download PDF** or **Download Word** builds the complete CV, n
 - **Every bullet goes back under the job it came from**, matched on its original text. A role the model
   picked no bullets from keeps up to two original lines, so the work history has no holes.
 - **No placeholder reaches an employer.** Unfilled `[metric: …]` clauses are taken out and you're told how many.
-- **One or two pages, measured, not guessed.** The PDF is rendered and its pages counted. If it's too
-  long, the font steps down (10.5 → 9.5 pt), then the least relevant bullets are cut one at a time, filler
-  lines first, until it fits.
+- **Clean layout.** One straight left edge, dates and locations right-aligned, promotions at the same
+  employer stacked in one block, justified summary and bullets, skills on labelled lines.
+- **One or two pages, measured, not guessed.** The PDF is rendered and its pages counted. It uses the
+  largest font that fits (11 → 9.5 pt); if it's still too long, the least relevant bullets are cut one at a
+  time, but no job is ever left without a bullet. "2 pages" stays on one if everything fits there.
 - **ATS read-back.** The finished PDF's text layer is extracted the way an ATS would read it, and the
   app checks that your name, email and phone are readable, sections are in order, no `[` placeholder
   is left, and how many of the job's keywords are in the file.
@@ -169,7 +171,7 @@ app/
     checks.py          ATS score, fact guard, markdown rendering
     skills.py          ~100 skills with aliases; literal vs alias-aware matching
   static/              single-page UI (HTML/CSS/vanilla JS) + sample CV and JD
-tests/                 40 pytest tests: checks, LLM retry logic, reviewer loop, CV export, API end to end
+tests/                 43 pytest tests: checks, LLM retry logic, reviewer loop, CV export, API end to end
 ```
 
 ## Testing

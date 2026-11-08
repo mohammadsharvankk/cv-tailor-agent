@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 # ---------- Step 1: job description ----------
 
@@ -24,9 +24,18 @@ class JobRequirements(BaseModel):
 
 class CVRole(BaseModel):
     title: str
-    organisation: str
+    organisation: str = Field(description="Employer or context only, without the city/country")
+    location: str | None = Field(default=None, description="City, country (or 'Remote') if written")
     dates: str | None = None
     bullets: list[str] = Field(default_factory=list)
+
+
+class EducationItem(BaseModel):
+    degree: str = Field(description="e.g. 'MSc Data Science'")
+    institution: str | None = None
+    location: str | None = None
+    dates: str | None = None
+    details: str | None = Field(default=None, description="Grade, honours, thesis, conferral date, verbatim")
 
 
 class CVProfile(BaseModel):
@@ -37,7 +46,12 @@ class CVProfile(BaseModel):
     skills: list[str] = Field(default_factory=list)
     roles: list[CVRole] = Field(default_factory=list)
     projects: list[CVRole] = Field(default_factory=list)
-    education: list[str] = Field(default_factory=list)
+    education: list[EducationItem] = Field(default_factory=list)
+
+    @field_validator("education", mode="before")
+    @classmethod
+    def _plain_lines(cls, v):  # accept one string per qualification too
+        return [{"degree": x} if isinstance(x, str) else x for x in (v or [])]
 
 
 # ---------- Step 3: gap analysis ----------
@@ -64,10 +78,17 @@ class BulletRewrite(BaseModel):
     needs_metric: bool = Field(default=False, description="True if a [metric] placeholder was left for the candidate to fill")
 
 
+class SkillGroup(BaseModel):
+    name: str = Field(description="Short label, e.g. 'Languages & Databases'")
+    skills: list[str] = Field(default_factory=list)
+
+
 class TailoredCV(BaseModel):
     headline: str
     summary: str
     skills_ordered: list[str] = Field(description="CV skills reordered by relevance; never add skills the CV does not show")
+    skill_groups: list[SkillGroup] = Field(default_factory=list,
+                                           description="skills_ordered split into 3-5 labelled lines for the CV")
     bullets: list[BulletRewrite] = Field(default_factory=list)
 
 

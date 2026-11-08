@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from difflib import SequenceMatcher
 
-from app.models import ATSScore, FactFlag, GapAnalysis, JobRequirements, TailoredCV
+from app.models import ATSScore, FactFlag, GapAnalysis, JobRequirements, SkillGroup, TailoredCV
 from app.pipeline.skills import find_skills, literal_hit, supported
 
 MUST_WEIGHT = 0.7
@@ -193,7 +193,17 @@ def fact_guard(cv_text: str, job: JobRequirements, tailored: TailoredCV,
     for s in dropped:
         flags.append(FactFlag(bullet_index=-1, rewritten=s, issue="new_skill",
                               detail=f"Removed '{s}' from the skills list: not shown in your CV"))
-    return tailored.model_copy(update={"skills_ordered": kept[:MAX_SKILLS]}), flags
+    kept = kept[:MAX_SKILLS]
+    groups = []
+    if tailored.skill_groups:
+        left = {k.lower(): k for k in kept}
+        for g in tailored.skill_groups:
+            names = [left.pop(x.lower()) for x in g.skills if x.lower() in left]
+            if names:
+                groups.append(SkillGroup(name=g.name, skills=names))
+        if left and groups:  # anything the model forgot to group still appears
+            groups.append(SkillGroup(name="Other", skills=list(left.values())))
+    return tailored.model_copy(update={"skills_ordered": kept, "skill_groups": groups}), flags
 
 
 def tailored_text_for_scoring(md: str, job: JobRequirements) -> str:
