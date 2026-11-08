@@ -66,7 +66,7 @@ After tailoring, **Download PDF** or **Download Word** builds the complete CV, n
   picked no bullets from keeps up to two original lines, so the work history has no holes.
 - **No placeholder reaches an employer.** Unfilled `[metric: …]` clauses are taken out and you're told how many.
 - **Clean layout.** One straight left edge, dates and locations right-aligned, promotions at the same
-  employer stacked in one block, justified summary and bullets, skills on labelled lines.
+  employer listed as separate roles (each with its own lines) under one company line, justified summary and bullets, skills on labelled lines.
 - **One or two pages, measured, not guessed.** The PDF is rendered and its pages counted. It uses the
   largest font that fits (11 → 9.5 pt); if it's still too long, the least relevant bullets are cut one at a
   time, but the main job keeps three lines and no other job is left without one.

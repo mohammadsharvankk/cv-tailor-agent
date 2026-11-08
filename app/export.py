@@ -54,6 +54,7 @@ class Entry:
     location: str
     bullets: list[Bullet] = field(default_factory=list)
     unused: list[str] = field(default_factory=list)  # original lines not shown yet (used to fill pages)
+    continued: bool = False  # same employer as the role above (a promotion): the company line isn't repeated
 
 
 @dataclass
@@ -187,23 +188,20 @@ def assemble(cv: CVProfile, tailored: TailoredCV, job: JobRequirements | None = 
     for e, orig, u in zip(entries, originals, used, strict=True):
         e.unused = [line for j, line in enumerate(orig) if j not in u and not _ANY_PH.search(line)]
 
-    def merge(kind: str) -> list[Entry]:
-        """Consecutive entries at the same organisation (promotions) become one block with stacked titles."""
+    def collect(kind: str) -> list[Entry]:
+        """Entries of one kind, in CV order. A role at the same employer as the one above is marked as continued,
+        so promotions read as separate roles, each with its own lines, under one company line."""
         out: list[Entry] = []
         for (k, _), e in zip(sources, entries, strict=True):
             if k != kind:
                 continue
             if kind == "role" and out and e.org and _squash(e.org) == _squash(out[-1].org):
-                last = out[-1]
-                last.titles += e.titles
-                last.bullets += e.bullets
-                last.unused += e.unused
-                last.location = last.location or e.location
-            else:
-                out.append(e)
+                e.continued = True
+                e.location = e.location or out[-1].location
+            out.append(e)
         return out
 
-    roles, projects, activities = merge("role"), merge("project"), merge("activity")
+    roles, projects, activities = collect("role"), collect("project"), collect("activity")
     # Activities (e.g. occasional pro bono work) only appear when this job calls for them.
     activities = [a for a in activities if relevant_activity(a, job)]
     # Every job and activity shows at least one line, so nothing looks empty.
@@ -418,10 +416,11 @@ def render_pdf(doc: CVDoc, size: float = FONT_SIZES[0], stretch: float = 1.0,
                 ctx = f" <font color='#444444'>| <i>{p(e.org)}</i></font>" if e.org else ""
                 top = [row(f"<b>{p(title)}</b>{ctx}", p(dates))]
         elif st.org_first:  # Harvard: **Organisation** ... location / Title ... dates
-            top = [row(f"<b>{p(e.org)}</b>", p(e.location))] + [row(p(t), p(d)) for t, d in e.titles]
+            top = [] if e.continued else [row(f"<b>{p(e.org)}</b>", p(e.location))]
+            top += [row(p(t), p(d)) for t, d in e.titles]
         else:  # Classic: **Title** ... dates / *Organisation* ... *location*
             top = [row(f"<b>{p(t)}</b>", p(d)) for t, d in e.titles]
-            if e.org or e.location:
+            if (e.org or e.location) and not e.continued:
                 top.append(row(p(e.org), p(e.location), second, right2))
         rest = bullets(e.bullets)
         # the header stays with its first bullet, so it never sits alone at the bottom of a page
@@ -733,13 +732,14 @@ def render_docx(doc: CVDoc, size: float, stretch: float = 1.0, style: str = "cla
                 else:  # Classic keeps the context on the title line, as in the PDF
                     row(title, dates, suffix=f" | {e.org}" if e.org else "")
             elif st.org_first:
-                row(e.org, e.location)
+                if not e.continued:
+                    row(e.org, e.location)
                 for t, dts in e.titles:
                     row(t, dts, bold=False)
             else:
                 for t, dts in e.titles:
                     row(t, dts)
-                if e.org or e.location:
+                if (e.org or e.location) and not e.continued:
                     row(e.org, e.location, bold=False, italic=True, color=soft)
             for b in e.bullets:
                 bullet(b.text)
@@ -819,6 +819,10 @@ def export(cv: CVProfile, job: JobRequirements, tailored: TailoredCV, fmt: str =
         warnings.append(f"Still {f.pages} pages: the fixed sections alone are longer than {pages} page(s).")
     if pages > 1 and not f.doc.interests:
         warnings.append("No interests found. Add an 'Interests' line to your master CV to show them on two pages.")
+    for e in f.doc.roles:
+        if not e.bullets:
+            warnings.append(f"'{e.titles[0][0]}' has no lines in your master CV. Add two or three bullets under "
+                            "that role so it doesn't look empty.")
     if not f.doc.contact:
         warnings.append("No contact details found in your CV. Add email and phone to the top of your master CV.")
     warnings += [f"ATS check failed: {k.replace('_', ' ')}" for k, ok in checks.items() if not ok]

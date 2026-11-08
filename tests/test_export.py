@@ -61,16 +61,27 @@ def test_education_line_split():
     assert (e.degree, e.institution, e.dates) == ("BSc Mathematics", "University of Leeds", "2020")
 
 
-def test_promotions_at_one_employer_share_a_block():
+def test_promotions_are_separate_roles_under_one_company_line():
     cv = CVProfile(name="S", roles=[
         CVRole(title="Senior Engineer", organisation="Resideo", location="Bangalore, India", dates="2023 – 2025",
-               bullets=["Built Python ETL pipelines feeding Tableau dashboards"]),
-        CVRole(title="Engineer", organisation="Resideo", dates="2019 – 2023", bullets=[]),
+               bullets=["Built Python ETL pipelines feeding Tableau dashboards", "Led a team of five engineers"]),
+        CVRole(title="Engineer", organisation="Resideo", dates="2019 – 2023",
+               bullets=["Tested the mobile app on iOS and Android", "Ran localization testing"]),
         CVRole(title="Intern", organisation="Infosys", dates="2019", bullets=["Trained in Python"])])
-    doc, _ = assemble(cv, TailoredCV(headline="h", summary="s", skills_ordered=[], bullets=[]))
-    assert [r.titles for r in doc.roles] == [[("Senior Engineer", "2023 – 2025"), ("Engineer", "2019 – 2023")],
+    t = TailoredCV(headline="h", summary="s", skills_ordered=[], bullets=[
+        BulletRewrite(original="Tested the mobile app on iOS and Android", rewritten="Tested the app on iOS and Android.")])
+    doc, _ = assemble(cv, t)
+    assert [r.titles for r in doc.roles] == [[("Senior Engineer", "2023 – 2025")], [("Engineer", "2019 – 2023")],
                                              [("Intern", "2019")]]
-    assert doc.roles[0].location == "Bangalore, India" and doc.roles[0].bullets  # filler from the block
+    assert [r.continued for r in doc.roles] == [False, True, False]
+    assert doc.roles[1].bullets[0].text == "Tested the app on iOS and Android."  # its own line, under its own title
+    assert doc.roles[1].location == "Bangalore, India"
+    for style in ("harvard", "classic"):
+        _, text = _pdf_text(export(cv, JOB, t, "pdf", 1, style)[0])
+        assert text.count("Resideo") == 1  # company line shown once
+        # each role is followed by its own lines: senior role, its bullets, then the earlier role and its bullet
+        order = [text.index(x) for x in ("2023 – 2025", "Led a team", "2019 – 2023", "Tested the app")]
+        assert order == sorted(order), style
 
 
 def _pdf_text(data):
