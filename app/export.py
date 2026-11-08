@@ -142,17 +142,35 @@ _MONTH = r"(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\.?\s+"
 _RANGE = re.compile(rf"((?:{_MONTH})?(?:19|20)\d{{2}})(\s*[–—-]\s*((?:{_MONTH})?(?:19|20)\d{{2}}|Present))?", re.I)
 
 
+_NOT_GRADE = re.compile(r"\b(conferred|conferment|awarded on|graduat\w*|module|coursework|courses|thesis|dissertation)\b",
+                        re.I)
+
+
+def short_details(text: str, limit: int = 70) -> str:
+    """Keep only the classification and grade: first clause, no brackets, no conferral dates or module lists."""
+    if not text:
+        return ""
+    first = re.split(r";|\.\s|\.$", text.strip())[0]
+    first = re.sub(r"\s*\([^)]*\)", "", first)  # "(official weighted mark 84)" etc.
+    parts = [x.strip() for x in first.split(",") if x.strip() and not _NOT_GRADE.search(x)]
+    out = ", ".join(parts)
+    while len(out) > limit and "," in out:
+        out = out.rsplit(",", 1)[0]
+    return out[:limit].strip(" ,")
+
+
 def to_edu(item: EducationItem) -> Edu:
     """Structured item -> Edu. A plain one-line item ('MSc X, Uni, Sep 2025 – Sep 2026, Distinction') is split."""
     if item.institution or item.dates or item.details:
-        return Edu(item.degree, item.institution or "", item.location or "", item.dates or "", item.details or "")
+        return Edu(item.degree, item.institution or "", item.location or "", item.dates or "",
+                   short_details(item.details or ""))
     line = item.degree.strip()
     m = _RANGE.search(line)
     dates, before, after = "", line, ""
     if m:
         dates, before, after = m.group(0).strip(), line[: m.start()], line[m.end():]
     parts = [x.strip() for x in re.split(r"\s+\|\s+|,\s+", before.strip(" ,|")) if x.strip()]
-    return Edu(parts[0] if parts else line, ", ".join(parts[1:]), "", dates, after.strip(" ,|;."))
+    return Edu(parts[0] if parts else line, ", ".join(parts[1:]), "", dates, short_details(after.strip(" ,|;.")))
 
 
 def relevant_activity(e: Entry, job: JobRequirements | None) -> bool:

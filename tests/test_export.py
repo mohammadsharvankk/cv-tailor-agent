@@ -57,6 +57,17 @@ def test_education_line_split():
                                     "Distinction, overall 83.7%"))
     assert (e.degree, e.institution, e.dates, e.details) == (
         "MSc Data Science", "University of Birmingham Dubai", "Sep 2025 – Sep 2026", "Distinction, overall 83.7%")
+
+
+def test_education_details_print_only_the_grade():
+    from app.export import short_details
+    long = ("Distinction, overall 83.7% (official weighted mark 84); degree conferred 11 Dec 2026. Module marks: "
+            "Current Topics in AI & Data Science 94, Programming for Data Science 92. Coursework covered machine "
+            "learning, CNNs, NLP, PCA, statistics and GDPR.")
+    assert short_details(long) == "Distinction, overall 83.7%"
+    assert short_details("Distinction, 84%") == "Distinction, 84%"
+    assert short_details("First Class with Distinction, CGPA 7.80/10 (70.50%)") == "First Class with Distinction, CGPA 7.80/10"
+    assert short_details("Distinction; degree conferred 11 Dec 2026") == "Distinction"
     e = to_edu(EducationItem(degree="BSc Mathematics, University of Leeds, 2020"))
     assert (e.degree, e.institution, e.dates) == ("BSc Mathematics", "University of Leeds", "2020")
 

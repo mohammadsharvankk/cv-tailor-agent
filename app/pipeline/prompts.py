@@ -22,8 +22,9 @@ Rules:
 - contact: the candidate's email, phone, location and profile links exactly as written, joined with " · ".
 - languages: spoken languages with their level, verbatim. interests: hobbies/interests if listed.
 - roles and projects: put the city/country (or "Remote") in location, not inside organisation.
-- education: one item per qualification: degree, institution, location, dates, and everything else
-  (grade, honours, conferral date) in details, verbatim."""
+- education: one item per qualification: degree, institution, location, dates; details = classification
+  and grade only, as briefly as the CV allows (e.g. "Distinction, 84%"), no conferral dates; module marks,
+  coursework and topics go in coursework."""
 
 GAPS_SYSTEM = """You are a candid career coach assessing fit between a CV and a job.
 Rules:

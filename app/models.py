@@ -35,7 +35,8 @@ class EducationItem(BaseModel):
     institution: str | None = None
     location: str | None = None
     dates: str | None = None
-    details: str | None = Field(default=None, description="Grade, honours, thesis, conferral date, verbatim")
+    details: str | None = Field(default=None, description="Classification and grade only, e.g. 'Distinction, 84%'")
+    coursework: str | None = Field(default=None, description="Modules, marks and topics: used as evidence, not printed")
 
 
 class CVProfile(BaseModel):
