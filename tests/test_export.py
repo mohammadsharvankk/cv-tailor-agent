@@ -159,7 +159,9 @@ def test_harvard_style_pdf_and_docx():
     cv.activities = [CVRole(title="Volunteer", organisation="MDC Qatar", location="Remote", dates="2022 – Present",
                             bullets=["Provide occasional IT and sales support"])]
     cv.languages, cv.interests = ["English (fluent)", "Arabic (reads and writes)"], ["Chess"]
-    data, name, rep = export(cv, JOB, _tailored(cv, [(0, 0), (-1, 0)]), "pdf", pages=2, style="harvard")
+    crm_job = JobRequirements(title="Data Analyst", must_have_skills=["Python", "SQL", "Salesforce"])
+    cv.activities[0].bullets = ["Provide occasional IT and sales support in Salesforce"]
+    data, name, rep = export(cv, crm_job, _tailored(cv, [(0, 0), (-1, 0)]), "pdf", pages=2, style="harvard")
     _, text = _pdf_text(data)
     for h in ["Education", "Experience", "Key Projects", "Leadership & Activities", "Skills & Interests",
               "Languages:", "Interests:"]:
@@ -179,3 +181,17 @@ def test_cutting_never_leaves_a_job_empty():
     _, text = _pdf_text(doc_pdf)
     for r in range(8):  # every role keeps at least its most relevant bullet
         assert f"Tailored {r}.0" in text
+
+
+def test_pro_bono_activity_only_when_the_job_asks_for_it():
+    cv = _cv(n_roles=1, n_bullets=2)
+    cv.activities = [CVRole(title="IT & Sales Support (volunteer, occasional)", organisation="MDC Qatar",
+                            dates="2022 – Present", bullets=["Provide occasional IT and sales support in Salesforce"])]
+    t = _tailored(cv, [(0, 0)])
+    doc, _ = assemble(cv, t, JOB)  # data analyst job: no Salesforce, no sales
+    assert doc.activities == []
+    sales = JobRequirements(title="Account Executive", must_have_skills=["Salesforce", "CRM"])
+    doc, _ = assemble(cv, t, sales)
+    assert [a.org for a in doc.activities] == ["MDC Qatar"]
+    _, text = _pdf_text(export(cv, JOB, t, "pdf", pages=2, style="harvard")[0])
+    assert "MDC Qatar" not in text and "Leadership" not in text  # not even as two-page filler

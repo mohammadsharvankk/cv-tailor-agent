@@ -60,7 +60,8 @@ After tailoring, **Download PDF** or **Download Word** builds the complete CV, n
     Real Word heading styles for accessibility.
   - **Classic**: Jake's Resume look, Times, job title first.
   - Sections: Summary, Education, Experience, Key Projects, Leadership & Activities, Skills (with languages;
-    interests only on two-page CVs).
+    interests only on two-page CVs). Activities appear only when the job asks for what they show (e.g. a
+    pro bono Salesforce role appears for a CRM job, not for a data-science one).
 - **Every bullet goes back under the job it came from**, matched on its original text. A role the model
   picked no bullets from keeps up to two original lines, so the work history has no holes.
 - **No placeholder reaches an employer.** Unfilled `[metric: …]` clauses are taken out and you're told how many.
@@ -180,7 +181,7 @@ app/
     checks.py          ATS score, fact guard, markdown rendering
     skills.py          ~100 skills with aliases; literal vs alias-aware matching
   static/              single-page UI (HTML/CSS/vanilla JS) + sample CV and JD
-tests/                 46 pytest tests: checks, LLM retry logic, reviewer loop, CV export, API end to end
+tests/                 47 pytest tests: checks, LLM retry logic, reviewer loop, CV export, API end to end
 ```
 
 ## Testing

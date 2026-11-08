@@ -46,6 +46,8 @@ Hard rules (a downstream fact-checker will flag violations):
   for a skill the CV already shows under another name (e.g. "sklearn" -> "scikit-learn").
 - The CV may be a long master CV. Pick the bullets most relevant to this job from ANY role or project
   (max 12) and rewrite those. Keep each under 35 words. Prefer recent, quantified, job-relevant work.
+- Use lines from activities (volunteering, occasional pro bono work) only when they directly match a
+  requirement of this job.
 - Lines under "Confirmed skills" are evidence the candidate added; you may use them like any CV line.
 - skills_ordered: the CV's own skills, most job-relevant first, using the employer's wording where equivalent.
 - <keywords_to_use> lists the employer's exact phrases that the CV supports but doesn't use word for word.

@@ -154,7 +154,18 @@ def to_edu(item: EducationItem) -> Edu:
     return Edu(parts[0] if parts else line, ", ".join(parts[1:]), "", dates, after.strip(" ,|;."))
 
 
-def assemble(cv: CVProfile, tailored: TailoredCV) -> tuple[CVDoc, int]:
+def relevant_activity(e: Entry, job: JobRequirements | None) -> bool:
+    """Show a volunteer/activity block only when the job asks for what it shows (or a tailored line came from it)."""
+    if any(b.priority < FILLER for b in e.bullets):  # the tailoring step picked one of its lines
+        return True
+    if job is None:
+        return False
+    text = " ".join([e.org, *[t for t, _ in e.titles], *[b.text for b in e.bullets], *e.unused])
+    terms = job.must_have_skills + job.nice_to_have_skills + job.domain_keywords
+    return any(supported(text, t) for t in terms)
+
+
+def assemble(cv: CVProfile, tailored: TailoredCV, job: JobRequirements | None = None) -> tuple[CVDoc, int]:
     sources = [("role", r) for r in cv.roles] + [("project", p) for p in cv.projects] + \
               [("activity", a) for a in cv.activities]
     entries = [Entry([(r.title, r.dates or "")], r.organisation, r.location or "") for _, r in sources]
@@ -193,6 +204,8 @@ def assemble(cv: CVProfile, tailored: TailoredCV) -> tuple[CVDoc, int]:
         return out
 
     roles, projects, activities = merge("role"), merge("project"), merge("activity")
+    # Activities (e.g. occasional pro bono work) only appear when this job calls for them.
+    activities = [a for a in activities if relevant_activity(a, job)]
     # Every job and activity shows at least one line, so nothing looks empty.
     for k, e in enumerate(roles + activities):
         while len(e.bullets) < (2 if e in roles else 1) and e.unused:
@@ -786,7 +799,7 @@ def filename(doc: CVDoc, job: JobRequirements, ext: str) -> str:
 
 def export(cv: CVProfile, job: JobRequirements, tailored: TailoredCV, fmt: str = "pdf", pages: int = 1,
            style: str = "classic") -> tuple[bytes, str, ExportReport]:
-    doc, removed = assemble(cv, tailored)
+    doc, removed = assemble(cv, tailored, job)
     if pages < 2:
         doc.interests = []  # interests only on a two-page CV
     f = fit(doc, pages, style, job)
