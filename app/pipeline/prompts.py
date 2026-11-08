@@ -16,9 +16,11 @@ Rules:
 PARSE_CV_SYSTEM = """You are parsing a CV into structured data.
 Rules:
 - Copy bullets verbatim. Do not rewrite, merge, summarise or improve anything.
-- Put every experience bullet under the role it belongs to; put personal/academic projects under projects.
+- Put every experience bullet under the role it belongs to; put personal/academic projects under projects;
+  put volunteering, leadership and society roles under activities.
 - skills: every tool, language or method the CV explicitly names.
 - contact: the candidate's email, phone, location and profile links exactly as written, joined with " · ".
+- languages: spoken languages with their level, verbatim. interests: hobbies/interests if listed.
 - roles and projects: put the city/country (or "Remote") in location, not inside organisation.
 - education: one item per qualification: degree, institution, location, dates, and everything else
   (grade, honours, conferral date) in details, verbatim."""

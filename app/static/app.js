@@ -209,7 +209,7 @@ async function exportCV(format) {
     const r = await fetch("/api/export", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ cv: lastResult.cv, job: lastResult.job, tailored: lastResult.tailored,
-        format, pages: Number($("pages").value) }),
+        format, pages: Number($("pages").value), style: $("cvStyle").value }),
     });
     if (!r.ok) throw new Error((await r.json()).detail || "Export failed");
     const name = /filename="([^"]+)"/.exec(r.headers.get("Content-Disposition") || "")?.[1] || `cv.${format}`;
@@ -235,11 +235,21 @@ function showReport(rep, name) {
   $("exportReport").classList.toggle("warn", warn);
   $("exportReport").innerHTML =
     `<b>${esc(name)}</b>: ${rep.pages} page(s), ${rep.bullets_kept} bullets` +
+    (rep.bullets_added ? ` (${rep.bullets_added} added from your master CV to fill the page)` : "") +
     (rep.ats_score != null ? `, keyword match in the file ${Math.round(rep.ats_score)}` : "") +
     `. An ATS can read: ${esc(passed.join(", ") || "–")}.` +
     (warn ? `<ul>${rep.warnings.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>` : "");
   $("exportReport").hidden = false;
 }
+
+// remember the last style and page choice
+try {
+  for (const id of ["cvStyle", "pages"]) {
+    const v = localStorage.getItem(id);
+    if (v) $(id).value = v;
+    $(id).onchange = () => localStorage.setItem(id, $(id).value);
+  }
+} catch { /* storage unavailable: defaults are fine */ }
 
 $("dlPdf").onclick = () => exportCV("pdf");
 $("dlDocx").onclick = () => exportCV("docx");

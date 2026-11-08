@@ -82,7 +82,7 @@ MEDIA = {"pdf": "application/pdf",
 @app.post("/api/export")
 def export_cv(req: ExportRequest) -> Response:
     """Build the finished CV. The ATS read-back report comes in the X-Export-Report header (JSON)."""
-    data, name, report = exporter.export(req.cv, req.job, req.tailored, req.format, req.pages)
+    data, name, report = exporter.export(req.cv, req.job, req.tailored, req.format, req.pages, req.style)
     return Response(data, media_type=MEDIA[req.format], headers={
         "Content-Disposition": f'attachment; filename="{name}"',
         "X-Export-Report": json.dumps(report.model_dump(), ensure_ascii=True),

@@ -54,8 +54,13 @@ flowchart LR
 
 After tailoring, **Download PDF** or **Download Word** builds the complete CV, not just the snippets:
 
-- **Single column, Jake's Resume style** (Header, Summary, Education, Experience, Key Projects, Technical
-  Skills), A4, plain fonts that every ATS can read.
+- **Two single-column styles**, A4, fonts every ATS can read:
+  - **Harvard**: modelled on the Harvard careers office (MCS) accessible template. Calibri (Carlito in the
+    PDF, a metric-compatible open font bundled under the SIL OFL), organisation first, then title and dates.
+    Real Word heading styles for accessibility.
+  - **Classic**: Jake's Resume look, Times, job title first.
+  - Sections: Summary, Education, Experience, Key Projects, Leadership & Activities, Skills (with languages;
+    interests only on two-page CVs).
 - **Every bullet goes back under the job it came from**, matched on its original text. A role the model
   picked no bullets from keeps up to two original lines, so the work history has no holes.
 - **No placeholder reaches an employer.** Unfilled `[metric: …]` clauses are taken out and you're told how many.
@@ -63,7 +68,10 @@ After tailoring, **Download PDF** or **Download Word** builds the complete CV, n
   employer stacked in one block, justified summary and bullets, skills on labelled lines.
 - **One or two pages, measured, not guessed.** The PDF is rendered and its pages counted. It uses the
   largest font that fits (11 → 9.5 pt); if it's still too long, the least relevant bullets are cut one at a
-  time, but no job is ever left without a bullet. "2 pages" stays on one if everything fits there.
+  time, but the main job keeps three lines and no other job is left without one.
+- **Full pages, nothing invented.** If there's room, more of your own master-CV lines are added unchanged,
+  most job-relevant first, then the spacing is spread so the last page ends near the bottom instead of
+  halfway down.
 - **ATS read-back.** The finished PDF's text layer is extracted the way an ATS would read it, and the
   app checks that your name, email and phone are readable, sections are in order, no `[` placeholder
   is left, and how many of the job's keywords are in the file.
@@ -144,7 +152,7 @@ Interactive docs at `/docs` (OpenAPI / Swagger).
 | `GET` / `PUT` | `/api/master` | `{ "text": … }` on PUT | your private master CV |
 | `POST` | `/api/master/evidence` | `{ "skill": …, "evidence": … }` | master CV with the new confirmed skill |
 | `POST` | `/api/analyze` | `{ "cv_text": …, "jd_text": … }` | job, CV, gaps, tailored CV, ATS before/after, fact flags, markdown |
-| `POST` | `/api/export` | `{ "cv", "job", "tailored" }` from `/api/analyze`, plus `"format": "pdf"\|"docx"`, `"pages": 1\|2` | the CV file; ATS read-back report in the `X-Export-Report` header |
+| `POST` | `/api/export` | `{ "cv", "job", "tailored" }` from `/api/analyze`, plus `"format": "pdf"\|"docx"`, `"pages": 1\|2`, `"style": "harvard"\|"classic"` | the CV file; ATS read-back report in the `X-Export-Report` header |
 
 ```bash
 curl -s localhost:8000/api/analyze -H "Content-Type: application/json" \
@@ -159,7 +167,8 @@ app/
   config.py            settings from env / .env
   models.py            Pydantic contracts for every step
   extract.py           PDF / DOCX / TXT -> text
-  export.py            finished CV: bullets back under their roles, PDF + DOCX, page fitting, ATS read-back
+  export.py            finished CV in Harvard or Classic style: PDF + DOCX, page fitting and filling, ATS read-back
+  fonts/               Carlito (metric-compatible with Calibri, SIL Open Font License)
   master.py            private master CV: load, save, add confirmed skills
   llm/
     base.py            provider interface, JSON extraction, validate-and-repair loop
@@ -171,7 +180,7 @@ app/
     checks.py          ATS score, fact guard, markdown rendering
     skills.py          ~100 skills with aliases; literal vs alias-aware matching
   static/              single-page UI (HTML/CSS/vanilla JS) + sample CV and JD
-tests/                 43 pytest tests: checks, LLM retry logic, reviewer loop, CV export, API end to end
+tests/                 46 pytest tests: checks, LLM retry logic, reviewer loop, CV export, API end to end
 ```
 
 ## Testing

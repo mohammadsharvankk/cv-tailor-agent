@@ -15,7 +15,8 @@ from app.pipeline.skills import SKILL_ALIASES, canonical, find_skills, literal_h
 
 _NICE_HEADING = re.compile(r"(nice to have|nice-to-have|preferred|desirable|bonus|plus)", re.I)
 _SECTION = re.compile(r"^(summary|profile|experience|work experience|employment|projects|education|skills|"
-                      r"technical skills|certifications)\s*:?\s*$", re.I)
+                      r"technical skills|certifications|leadership & activities|activities|volunteering|languages|interests)"
+                      r"\s*:?\s*$", re.I)
 _BULLET = re.compile(r"^\s*[-•*▪–]\s+")
 
 
@@ -71,7 +72,7 @@ class MockProvider(LLMProvider):
         lines = [re.sub(r"^#+\s*|\*\*", "", ln).rstrip() for ln in cv.splitlines() if ln.strip()]
         out = {"name": lines[0].strip() if lines else None, "headline": lines[1].strip() if len(lines) > 1 else None,
                "contact": None, "summary": None, "skills": find_skills(cv), "roles": [], "projects": [],
-               "education": []}
+               "activities": [], "education": [], "languages": [], "interests": []}
         start = 2
         if len(lines) > 2 and re.search(r"@|\+?\d[\d ]{7,}|linkedin", lines[2], re.I):
             out["contact"], start = lines[2].strip(), 3
@@ -82,8 +83,11 @@ class MockProvider(LLMProvider):
                 section = s.lower().rstrip(":")
                 current = None
                 continue
-            if section in {"experience", "work experience", "employment", "projects"}:
-                bucket = out["projects"] if section == "projects" else out["roles"]
+            if section in {"experience", "work experience", "employment", "projects", "leadership & activities",
+                           "activities", "volunteering"}:
+                bucket = (out["projects"] if section == "projects" else
+                          out["roles"] if section in {"experience", "work experience", "employment"} else
+                          out["activities"])
                 if _BULLET.match(s):
                     if current is None:
                         current = {"title": "Untitled", "organisation": "", "dates": None, "bullets": []}
@@ -99,6 +103,8 @@ class MockProvider(LLMProvider):
                 out["summary"] = (out["summary"] + " " + s) if out["summary"] else s
             elif section == "education":
                 out["education"].append(_BULLET.sub("", s))
+            elif section in {"languages", "interests"}:
+                out[section] += [x.strip() for x in re.split(r",|;", _BULLET.sub("", s)) if x.strip()]
         return out
 
     # ---- step 3 -------------------------------------------------------

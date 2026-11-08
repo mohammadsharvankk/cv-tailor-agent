@@ -46,7 +46,10 @@ class CVProfile(BaseModel):
     skills: list[str] = Field(default_factory=list)
     roles: list[CVRole] = Field(default_factory=list)
     projects: list[CVRole] = Field(default_factory=list)
+    activities: list[CVRole] = Field(default_factory=list, description="Volunteering, leadership, societies")
     education: list[EducationItem] = Field(default_factory=list)
+    languages: list[str] = Field(default_factory=list, description="Spoken languages with level, verbatim")
+    interests: list[str] = Field(default_factory=list)
 
     @field_validator("education", mode="before")
     @classmethod
@@ -165,12 +168,14 @@ class ExportRequest(BaseModel):
     tailored: TailoredCV
     format: Literal["pdf", "docx"] = "pdf"
     pages: Literal[1, 2] = 1
+    style: Literal["classic", "harvard"] = "classic"
 
 
 class ExportReport(BaseModel):
     pages: int
     bullets_kept: int
     bullets_dropped: int = Field(description="Lower-priority bullets cut to fit the page limit")
+    bullets_added: int = Field(default=0, description="Extra original lines from your CV added to fill the pages")
     placeholders_removed: int = Field(description="[metric: ...] clauses taken out because no real figure was given")
     text_checks: dict[str, bool] = Field(default_factory=dict, description="What an ATS can read from the PDF text layer")
     ats_score: float | None = None

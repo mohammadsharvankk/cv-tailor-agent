@@ -44,8 +44,9 @@ def test_placeholder_clauses_are_removed_cleanly():
 def test_bullets_go_back_under_their_own_role():
     cv = _cv()
     doc, removed = assemble(cv, _tailored(cv, [(2, 1), (0, 3), (-1, 0)]))
-    assert [b.text[:12] for b in doc.roles[2].bullets] == ["Tailored 2.1"]
-    assert [b.text[:12] for b in doc.roles[0].bullets] == ["Tailored 0.3"]
+    # tailored line first, topped up to two lines with the role's own original text
+    assert [b.text[:12] for b in doc.roles[2].bullets] == ["Tailored 2.1", "Original bul"]
+    assert [b.text[:12] for b in doc.roles[0].bullets] == ["Tailored 0.3", "Original bul"]
     assert len(doc.roles[1].bullets) == 2 and doc.roles[1].bullets[0].text.startswith("Original")  # filler
     assert doc.projects[0].bullets[0].text.startswith("Tailored -1.0")
     assert removed == 4 and "[" not in doc.summary
@@ -126,9 +127,49 @@ def test_export_endpoint_end_to_end(monkeypatch):
 
 
 def test_short_cv_asked_for_two_pages_stays_on_one():
-    cv = _cv(n_roles=2, n_bullets=2)
+    cv = _cv(n_roles=1, n_bullets=2)
     data, _, rep = export(cv, JOB, _tailored(cv, [(0, 0)]), "pdf", pages=2)
-    assert rep.pages == 1 and any("fits on one page" in w for w in rep.warnings)
+    assert rep.pages == 1 and any("kept to one page" in w for w in rep.warnings)
+
+
+def test_two_pages_are_filled_with_real_lines():
+    from app.export import assemble, fit
+    cv = _cv(n_roles=6, n_bullets=8)
+    doc, _ = assemble(cv, _tailored(cv, [(r, 0) for r in range(6)]))
+    f = fit(doc, 2, "classic", JOB)
+    assert f.pages == 2 and f.added > 0
+    from app.export import render_pdf
+    _, n, fill = render_pdf(f.doc, f.size, f.stretch, "classic")
+    assert n == 2 and fill > 0.85  # the second page ends near the bottom, not halfway
+    texts = [b.text for b in f.doc.all_bullets()]
+    assert all(t.startswith(("Tailored", "Original")) for t in texts)  # nothing invented
+
+
+def test_one_page_gap_is_closed_with_spacing():
+    from app.export import assemble, fit, render_pdf
+    cv = _cv(n_roles=2, n_bullets=2)
+    doc, _ = assemble(cv, _tailored(cv, [(0, 0)]))
+    f = fit(doc, 1, "harvard", JOB)
+    _, n, fill = render_pdf(f.doc, f.size, f.stretch, "harvard")
+    assert n == 1 and f.stretch > 1.0
+
+
+def test_harvard_style_pdf_and_docx():
+    cv = _cv()
+    cv.activities = [CVRole(title="Volunteer", organisation="MDC Qatar", location="Remote", dates="2022 – Present",
+                            bullets=["Provide occasional IT and sales support"])]
+    cv.languages, cv.interests = ["English (fluent)", "Arabic (reads and writes)"], ["Chess"]
+    data, name, rep = export(cv, JOB, _tailored(cv, [(0, 0), (-1, 0)]), "pdf", pages=2, style="harvard")
+    _, text = _pdf_text(data)
+    for h in ["Education", "Experience", "Key Projects", "Leadership & Activities", "Skills & Interests",
+              "Languages:", "Interests:"]:
+        assert h in text
+    assert all(rep.text_checks.values())
+    one = export(cv, JOB, _tailored(cv, [(0, 0)]), "pdf", pages=1, style="harvard")[0]
+    assert "Interests:" not in _pdf_text(one)[1]  # interests only on two pages
+    d = docx.Document(io.BytesIO(export(cv, JOB, _tailored(cv, [(0, 0)]), "docx", 2, "harvard")[0]))
+    assert d.paragraphs[0].style.name == "Heading 1" and d.styles["Normal"].font.name == "Calibri"
+    assert any(p.style.name == "Heading 2" and p.text == "Experience" for p in d.paragraphs)
 
 
 def test_cutting_never_leaves_a_job_empty():

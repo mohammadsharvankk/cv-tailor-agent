@@ -22,8 +22,18 @@ Customer Churn Model | Personal project | 2023
 - Built a churn classifier in Python with pandas and XGBoost on a public telecom dataset, reaching 0.84 ROC-AUC
 - Deployed the model as a Flask REST API in a Docker container
 
+Leadership & Activities
+Volunteer Data Mentor | Code Club Leeds | Sep 2021 – Present
+- Mentor six students a term in Python and data analysis basics
+
 Education
 BSc Mathematics, University of Leeds, 2020
 
 Skills
 Python, pandas, scikit-learn, SQL, Power BI, Excel, Git, Docker, Flask, A/B testing
+
+Languages
+English (native), Spanish (conversational)
+
+Interests
+Chess, trail running, open data
