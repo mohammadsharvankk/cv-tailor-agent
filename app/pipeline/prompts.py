@@ -17,7 +17,9 @@ PARSE_CV_SYSTEM = """You are parsing a CV into structured data.
 Rules:
 - Copy bullets verbatim. Do not rewrite, merge, summarise or improve anything.
 - Put every experience bullet under the role it belongs to; put personal/academic projects under projects.
-- skills: every tool, language or method the CV explicitly names."""
+- skills: every tool, language or method the CV explicitly names.
+- contact: the candidate's email, phone, location and profile links exactly as written, joined with " · ".
+- education: one string per qualification, verbatim (degree, institution, dates, grade)."""
 
 GAPS_SYSTEM = """You are a candid career coach assessing fit between a CV and a job.
 Rules:

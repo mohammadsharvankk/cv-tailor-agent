@@ -50,6 +50,23 @@ flowchart LR
 | 6 | **One revision**, using the reviewer's notes. Code then re-runs the fact guard and the ATS score and **keeps the revision only if it isn't worse**: no new open fact flags, and the ATS match drops by no more than 5 points. Otherwise the first draft wins | LLM + Python |
 | ✓ | **ATS score:** literal match of the employer's exact skill wording, must-haves weighted 70%. The job title is excluded, so echoing it can't inflate the score | Python |
 
+### Download the finished CV
+
+After tailoring, **Download PDF** or **Download Word** builds the complete CV, not just the snippets:
+
+- **Single column, Jake's Resume style** (Header, Summary, Education, Experience, Key Projects, Technical
+  Skills), A4, plain fonts that every ATS can read.
+- **Every bullet goes back under the job it came from**, matched on its original text. A role the model
+  picked no bullets from keeps up to two original lines, so the work history has no holes.
+- **No placeholder reaches an employer.** Unfilled `[metric: …]` clauses are taken out and you're told how many.
+- **One or two pages, measured, not guessed.** The PDF is rendered and its pages counted. If it's too
+  long, the font steps down (10.5 → 9.5 pt), then the least relevant bullets are cut one at a time, filler
+  lines first, until it fits.
+- **ATS read-back.** The finished PDF's text layer is extracted the way an ATS would read it, and the
+  app checks that your name, email and phone are readable, sections are in order, no `[` placeholder
+  is left, and how many of the job's keywords are in the file.
+- Files are named `Your_Name_Job_Title.pdf` / `.docx`.
+
 ### Design decisions
 
 - **Two matching modes.** ATS systems match words literally, so the score uses the employer's exact
@@ -125,6 +142,7 @@ Interactive docs at `/docs` (OpenAPI / Swagger).
 | `GET` / `PUT` | `/api/master` | `{ "text": … }` on PUT | your private master CV |
 | `POST` | `/api/master/evidence` | `{ "skill": …, "evidence": … }` | master CV with the new confirmed skill |
 | `POST` | `/api/analyze` | `{ "cv_text": …, "jd_text": … }` | job, CV, gaps, tailored CV, ATS before/after, fact flags, markdown |
+| `POST` | `/api/export` | `{ "cv", "job", "tailored" }` from `/api/analyze`, plus `"format": "pdf"\|"docx"`, `"pages": 1\|2` | the CV file; ATS read-back report in the `X-Export-Report` header |
 
 ```bash
 curl -s localhost:8000/api/analyze -H "Content-Type: application/json" \
@@ -139,6 +157,7 @@ app/
   config.py            settings from env / .env
   models.py            Pydantic contracts for every step
   extract.py           PDF / DOCX / TXT -> text
+  export.py            finished CV: bullets back under their roles, PDF + DOCX, page fitting, ATS read-back
   master.py            private master CV: load, save, add confirmed skills
   llm/
     base.py            provider interface, JSON extraction, validate-and-repair loop
@@ -150,7 +169,7 @@ app/
     checks.py          ATS score, fact guard, markdown rendering
     skills.py          ~100 skills with aliases; literal vs alias-aware matching
   static/              single-page UI (HTML/CSS/vanilla JS) + sample CV and JD
-tests/                 33 pytest tests: checks, LLM retry logic, reviewer loop, API end to end
+tests/                 40 pytest tests: checks, LLM retry logic, reviewer loop, CV export, API end to end
 ```
 
 ## Testing
@@ -168,7 +187,7 @@ GitHub Actions runs lint, tests and a Docker build on every push.
 - The ATS score is a transparent approximation. Real ATS products differ and don't publish their rules.
 - The skill vocabulary drives the fact guard. A skill outside it can't be flagged, so the LLM's own
   rules are the backstop there.
-- Ideas: export to DOCX in a clean ATS template, cover-letter drafting with the same fact guard,
+- Ideas: in-browser editing of bullets before export, cover-letter drafting with the same fact guard,
   and an evaluation set of CV/JD pairs to measure flag rates per model.
 
 The sample CV (`Alex Morgan`) and job posting are fictional.

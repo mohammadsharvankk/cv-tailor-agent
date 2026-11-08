@@ -1,6 +1,7 @@
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 let lastMarkdown = "";
+let lastResult = null;
 
 let masterEnabled = false;
 fetch("/api/health").then((r) => r.json()).then((h) => {
@@ -107,6 +108,8 @@ function render(d) {
   [...$("bullets").children].forEach((li) => (li.onclick = () => li.classList.toggle("open")));
 
   lastMarkdown = d.tailored_markdown;
+  lastResult = d;
+  $("exportReport").hidden = true;
   $("results").hidden = false;
   $("results").scrollIntoView({ behavior: "smooth" });
 }
@@ -191,3 +194,52 @@ $("evForm").onsubmit = async (e) => {
   $("evDone").textContent = `Added "${skill}" to your master CV and loaded it into the CV box. Click "Tailor my CV" again to update the score.`;
   $("evDone").hidden = false;
 };
+
+// ---------- finished CV export ----------
+const CHECK_LABEL = { name_readable: "name", email_readable: "email", phone_readable: "phone",
+  sections_in_order: "section order", no_placeholders: "no placeholders" };
+
+async function exportCV(format) {
+  if (!lastResult) return;
+  const btn = format === "pdf" ? $("dlPdf") : $("dlDocx");
+  const label = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Building…";
+  try {
+    const r = await fetch("/api/export", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cv: lastResult.cv, job: lastResult.job, tailored: lastResult.tailored,
+        format, pages: Number($("pages").value) }),
+    });
+    if (!r.ok) throw new Error((await r.json()).detail || "Export failed");
+    const name = /filename="([^"]+)"/.exec(r.headers.get("Content-Disposition") || "")?.[1] || `cv.${format}`;
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(await r.blob());
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    showReport(JSON.parse(r.headers.get("X-Export-Report") || "{}"), name);
+    showError("");
+  } catch (err) {
+    showError(err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = label;
+  }
+}
+
+function showReport(rep, name) {
+  const checks = Object.entries(rep.text_checks || {});
+  const passed = checks.filter(([, ok]) => ok).map(([k]) => CHECK_LABEL[k] || k);
+  const warn = (rep.warnings || []).length > 0;
+  $("exportReport").classList.toggle("warn", warn);
+  $("exportReport").innerHTML =
+    `<b>${esc(name)}</b>: ${rep.pages} page(s), ${rep.bullets_kept} bullets` +
+    (rep.ats_score != null ? `, keyword match in the file ${Math.round(rep.ats_score)}` : "") +
+    `. An ATS can read: ${esc(passed.join(", ") || "–")}.` +
+    (warn ? `<ul>${rep.warnings.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>` : "");
+  $("exportReport").hidden = false;
+}
+
+$("dlPdf").onclick = () => exportCV("pdf");
+$("dlDocx").onclick = () => exportCV("docx");

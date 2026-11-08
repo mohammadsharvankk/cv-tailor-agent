@@ -70,9 +70,13 @@ class MockProvider(LLMProvider):
         cv = _tag(user, "cv")
         lines = [re.sub(r"^#+\s*|\*\*", "", ln).rstrip() for ln in cv.splitlines() if ln.strip()]
         out = {"name": lines[0].strip() if lines else None, "headline": lines[1].strip() if len(lines) > 1 else None,
-               "summary": None, "skills": find_skills(cv), "roles": [], "projects": [], "education": []}
+               "contact": None, "summary": None, "skills": find_skills(cv), "roles": [], "projects": [],
+               "education": []}
+        start = 2
+        if len(lines) > 2 and re.search(r"@|\+?\d[\d ]{7,}|linkedin", lines[2], re.I):
+            out["contact"], start = lines[2].strip(), 3
         section, current = None, None
-        for ln in lines[2:]:
+        for ln in lines[start:]:
             s = ln.strip()
             if _SECTION.match(s):
                 section = s.lower().rstrip(":")
@@ -86,7 +90,8 @@ class MockProvider(LLMProvider):
                         bucket.append(current)
                     current["bullets"].append(_BULLET.sub("", s))
                 else:
-                    parts = [p.strip() for p in re.split(r"\s+[|–—]\s+|\s+-\s+", s)]
+                    sep = r"\s+\|\s+" if "|" in s else r"\s+[–—]\s+|\s+-\s+"
+                    parts = [p.strip() for p in re.split(sep, s)]
                     current = {"title": parts[0], "organisation": parts[1] if len(parts) > 1 else "",
                                "dates": parts[2] if len(parts) > 2 else None, "bullets": []}
                     bucket.append(current)

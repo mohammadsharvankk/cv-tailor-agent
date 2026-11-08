@@ -32,6 +32,7 @@ class CVRole(BaseModel):
 class CVProfile(BaseModel):
     name: str | None = None
     headline: str | None = None
+    contact: str | None = Field(default=None, description="Email, phone, location and links, verbatim, joined with ' · '")
     summary: str | None = None
     skills: list[str] = Field(default_factory=list)
     roles: list[CVRole] = Field(default_factory=list)
@@ -135,3 +136,21 @@ class MasterCV(BaseModel):
 class EvidenceRequest(BaseModel):
     skill: str = Field(min_length=1, max_length=80)
     evidence: str = Field(min_length=10, max_length=300, description="One true sentence showing where you used it")
+
+
+class ExportRequest(BaseModel):
+    cv: CVProfile
+    job: JobRequirements
+    tailored: TailoredCV
+    format: Literal["pdf", "docx"] = "pdf"
+    pages: Literal[1, 2] = 1
+
+
+class ExportReport(BaseModel):
+    pages: int
+    bullets_kept: int
+    bullets_dropped: int = Field(description="Lower-priority bullets cut to fit the page limit")
+    placeholders_removed: int = Field(description="[metric: ...] clauses taken out because no real figure was given")
+    text_checks: dict[str, bool] = Field(default_factory=dict, description="What an ATS can read from the PDF text layer")
+    ats_score: float | None = None
+    warnings: list[str] = Field(default_factory=list)

@@ -95,3 +95,11 @@ button.link { border: 0; background: none; padding: 0; color: var(--accent); fon
 .issues .kind { display: inline-block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em;
   color: var(--warn); background: var(--warn-bg); padding: 1px 7px; border-radius: 999px; margin-right: 6px; }
 .issues .fix { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+.export { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0 10px; padding: 10px 12px;
+  border: 1px solid var(--line, #e5e7eb); border-radius: 10px; }
+.export .cap { margin-right: auto; }
+.export select { padding: 5px 8px; border-radius: 8px; border: 1px solid var(--line, #d1d5db); font: inherit; font-size: 13px; }
+.exreport { font-size: 13px; margin-bottom: 12px; padding: 8px 12px; border-radius: 8px; background: var(--good-bg); color: var(--good); }
+.exreport.warn { background: var(--warn-bg); color: var(--warn); }
+.exreport ul { margin: 4px 0 0 18px; padding: 0; }

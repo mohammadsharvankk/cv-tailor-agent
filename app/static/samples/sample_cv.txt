@@ -1,5 +1,6 @@
 Alex Morgan
 Data Analyst | Python, SQL, Dashboards
+London, UK · alex.morgan@example.com · +44 20 7946 0000 · linkedin.com/in/alex-morgan-demo
 
 Summary
 Data analyst with 4 years of experience turning operational data into reporting and simple predictive models.

@@ -2,19 +2,21 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
+from app import export as exporter
 from app import master
 from app.config import Settings, get_settings
 from app.extract import UnsupportedFile, extract_text
 from app.llm.base import LLMError, LLMProvider
 from app.llm.providers import get_provider
-from app.models import AnalyzeRequest, AnalyzeResponse, EvidenceRequest, MasterCV
+from app.models import AnalyzeRequest, AnalyzeResponse, EvidenceRequest, ExportRequest, MasterCV
 from app.pipeline import tailor
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -71,6 +73,21 @@ def analyze(req: AnalyzeRequest, llm: LLMProvider = Depends(provider_dep),
         return tailor.run(req.cv_text, req.jd_text, llm, review=settings.review_enabled)
     except LLMError as err:
         raise HTTPException(502, str(err)) from err
+
+
+MEDIA = {"pdf": "application/pdf",
+         "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
+
+
+@app.post("/api/export")
+def export_cv(req: ExportRequest) -> Response:
+    """Build the finished CV. The ATS read-back report comes in the X-Export-Report header (JSON)."""
+    data, name, report = exporter.export(req.cv, req.job, req.tailored, req.format, req.pages)
+    return Response(data, media_type=MEDIA[req.format], headers={
+        "Content-Disposition": f'attachment; filename="{name}"',
+        "X-Export-Report": json.dumps(report.model_dump(), ensure_ascii=True),
+        "Access-Control-Expose-Headers": "X-Export-Report, Content-Disposition",
+    })
 
 
 def _master_settings(settings: Settings = Depends(get_settings)) -> Settings:
