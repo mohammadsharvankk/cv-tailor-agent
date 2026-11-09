@@ -1,0 +1,135 @@
+# Builds the portable desktop apps:
+#   CV-Tailor-Windows.zip, CV-Tailor-macOS-AppleSilicon.zip (M1-M4), CV-Tailor-macOS-Intel.zip
+# - Push a tag like v1.0.0 -> the zips are attached to a GitHub Release.
+# - Or run it by hand from the Actions tab -> the zips are under the run's "Artifacts".
+name: Desktop apps
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -r requirements.txt pyinstaller
+      - name: Build
+        run: pyinstaller --noconfirm cv-tailor.spec
+      - name: Smoke test (start the app and call it)
+        shell: pwsh
+        run: |
+          $p = Start-Process dist/CV-Tailor/CV-Tailor.exe -WorkingDirectory dist/CV-Tailor -PassThru
+          $ok = $false
+          foreach ($i in 1..30) {
+            Start-Sleep 2
+            try { $r = Invoke-RestMethod http://127.0.0.1:8000/api/health; if ($r.status -eq "ok") { $ok = $true; break } } catch {}
+          }
+          Stop-Process $p -Force
+          Remove-Item dist/CV-Tailor/.env, dist/CV-Tailor/my_cv -Recurse -ErrorAction SilentlyContinue
+          if (-not $ok) { throw "The app did not start" }
+      - name: Add instructions
+        shell: pwsh
+        run: |
+          @"
+          CV Tailor Agent - portable Windows app
+
+          1. Keep this whole folder together (you can move it anywhere, e.g. a USB stick).
+          2. Double-click CV-Tailor.exe. Your browser opens the app. Keep the black window open while you use it.
+          3. Click Settings, choose your AI provider and paste your API key. It is saved in this folder (.env).
+          4. Your master CV is saved in this folder too (my_cv\master_cv.md).
+
+          First start: Windows may show "Windows protected your PC". Click "More info", then "Run anyway".
+          This appears because the app isn't code-signed by a paid certificate.
+          To stop the app, close the black window.
+          "@ | Set-Content dist/CV-Tailor/README.txt
+      - name: Zip
+        shell: pwsh
+        run: Compress-Archive -Path dist/CV-Tailor -DestinationPath CV-Tailor-Windows.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CV-Tailor-Windows
+          path: CV-Tailor-Windows.zip
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: CV-Tailor-Windows.zip
+
+  macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15          # Apple Silicon (M1-M4)
+            zip: CV-Tailor-macOS-AppleSilicon.zip
+          - runner: macos-15-intel    # Intel Macs
+            zip: CV-Tailor-macOS-Intel.zip
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -r requirements.txt pyinstaller
+      - name: Build
+        run: pyinstaller --noconfirm cv-tailor.spec
+      - name: Smoke test (start the app and call it)
+        run: |
+          cd dist/CV-Tailor
+          ./CV-Tailor > /tmp/app.log 2>&1 &
+          PID=$!
+          for i in $(seq 1 30); do
+            sleep 2
+            if curl -sf http://127.0.0.1:8000/api/health | grep -q '"ok"'; then OK=1; break; fi
+          done
+          kill $PID || true
+          rm -rf .env my_cv
+          cat /tmp/app.log
+          test "$OK" = 1
+      - name: Add a double-click starter and instructions
+        run: |
+          cd dist/CV-Tailor
+          cat > "Start CV Tailor.command" <<'SH'
+          #!/bin/bash
+          # Double-click to start CV Tailor. Close this Terminal window to stop it.
+          cd "$(dirname "$0")"
+          ./CV-Tailor
+          SH
+          chmod +x "Start CV Tailor.command" CV-Tailor
+          cat > README.txt <<'TXT'
+          CV Tailor Agent - portable Mac app
+
+          FIRST TIME ONLY (the app isn't signed with a paid Apple certificate, so macOS blocks it):
+            1. Move this "CV-Tailor" folder where you want to keep it (e.g. Applications or Documents).
+            2. Open Terminal and run this one line (drag the folder onto Terminal to fill in its path):
+                 xattr -dr com.apple.quarantine /path/to/CV-Tailor
+            This tells macOS you trust the app. Do it again only if you download a new version.
+
+          EVERY TIME:
+            Double-click "Start CV Tailor.command". Your browser opens the app.
+            Keep the Terminal window open while you use it; close it to stop the app.
+
+          Click Settings, choose your AI provider and paste your API key.
+          Your key (.env) and master CV (my_cv/) are saved in this folder.
+          TXT
+      - name: Zip (keeps file permissions)
+        run: ditto -c -k --keepParent dist/CV-Tailor "${{ matrix.zip }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.zip }}
+          path: ${{ matrix.zip }}
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.zip }}

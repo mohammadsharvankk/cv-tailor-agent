@@ -119,18 +119,30 @@ that list is your learning plan, or a sign the job isn't a fit.
 
 Set `MASTER_CV_ENABLED=false` if you ever deploy the app for other people.
 
-## Use it without installing anything (Windows)
+## Use it without installing anything (Windows and Mac)
 
-Download **CV-Tailor-Windows.zip** from the [Releases](../../releases) page, unzip it anywhere (a USB stick
-works too) and double-click **CV-Tailor.exe**. The app opens in your browser. Click **Settings** to choose
-Anthropic or OpenAI and paste your API key. Your key (`.env`) and your master CV (`my_cv/`) are saved
-inside that folder, so the folder is fully portable.
+From the [Releases](../../releases) page, download the zip for your computer:
 
-The first time, Windows may say "Windows protected your PC" because the app isn't code-signed: click
-**More info → Run anyway**. Close the black window to stop the app.
+| Computer | Download | Start it |
+|---|---|---|
+| Windows | `CV-Tailor-Windows.zip` | double-click **CV-Tailor.exe** |
+| Mac with Apple Silicon (M1–M4) | `CV-Tailor-macOS-AppleSilicon.zip` | double-click **Start CV Tailor.command** |
+| Intel Mac | `CV-Tailor-macOS-Intel.zip` | double-click **Start CV Tailor.command** |
 
-The zip is built by GitHub Actions (`.github/workflows/windows-app.yml`) on a Windows runner and smoke-tested
-before it's attached to the release. To publish a new version: `git tag v1.1.0 && git push --tags`.
+The app opens in your browser. Click **Settings** to choose Anthropic or OpenAI and paste your API key. Your
+key (`.env`) and master CV (`my_cv/`) are saved inside the app's folder, so the folder is portable (copy it
+to another computer or a USB stick). If that folder is read-only, they go to your user data folder instead
+(`~/Library/Application Support/CV Tailor` on a Mac, `%APPDATA%\CV Tailor` on Windows).
+
+The apps aren't code-signed (that needs paid Apple/Microsoft certificates), so the first start needs one extra step:
+
+- **Windows:** "Windows protected your PC" → **More info → Run anyway**.
+- **Mac:** once per download, in Terminal: `xattr -dr com.apple.quarantine /path/to/CV-Tailor` (drag the
+  folder onto the Terminal window to fill in the path). The `README.txt` in the zip explains it.
+
+The zips are built by GitHub Actions (`.github/workflows/desktop-apps.yml`) on Windows, Apple Silicon and Intel
+Mac runners, smoke-tested, and attached to the release. To publish a new version:
+`git tag v1.1.0 && git push origin v1.1.0`.
 
 ## Public demo (bring your own key)
 
@@ -193,7 +205,7 @@ app/
   main.py              FastAPI routes + static UI
   config.py            settings from env / .env
   models.py            Pydantic contracts for every step
-  desktop.py           Windows app launcher: free local port, opens the browser, keeps data next to the .exe
+  desktop.py           desktop app launcher: free local port, opens the browser, keeps data next to the app
   local_settings.py    Settings panel -> .env (local mode only; keys are never sent back to the page)
   extract.py           PDF / DOCX / TXT -> text
   export.py            finished CV in Harvard or Classic style: PDF + DOCX, page fitting and filling, ATS read-back
@@ -209,7 +221,7 @@ app/
     checks.py          ATS score, fact guard, markdown rendering
     skills.py          ~100 skills with aliases; literal vs alias-aware matching
   static/              single-page UI (HTML/CSS/vanilla JS) + sample CV and JD
-tests/                 53 pytest tests: checks, LLM retry logic, reviewer loop, CV export, settings, demo mode, API
+tests/                 54 pytest tests: checks, LLM retry logic, reviewer loop, CV export, settings, demo mode, API
 ```
 
 ## Testing

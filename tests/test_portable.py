@@ -98,3 +98,16 @@ def test_desktop_launcher_picks_a_free_local_port():
     finally:
         busy.close()
     assert app_folder().exists()
+
+
+def test_data_goes_to_user_folder_when_app_folder_is_read_only(monkeypatch, tmp_path):
+    from app import desktop
+
+    ro = tmp_path / "ro"
+    ro.mkdir()
+    monkeypatch.setattr(desktop, "app_folder", lambda: ro)
+    monkeypatch.setattr(desktop, "user_data_folder", lambda: tmp_path / "home" / "CV Tailor")
+    assert desktop.data_folder() == ro  # writable: portable, next to the app
+    monkeypatch.setattr(desktop, "writable", lambda folder: False)
+    assert desktop.data_folder() == tmp_path / "home" / "CV Tailor"
+    assert (tmp_path / "home" / "CV Tailor").is_dir()

@@ -9,6 +9,10 @@ USB stick and your settings and master CV come with it):
       .env                  <- your provider and API key (written by the Settings panel)
       my_cv/master_cv.md    <- your master CV
 
+If that folder can't be written to (on a Mac, apps opened straight from Downloads can run from a read-only
+copy), your data goes to the usual per-user folder instead: ~/Library/Application Support/CV Tailor on a
+Mac, %APPDATA%\CV Tailor on Windows, ~/.local/share/cv-tailor on Linux.
+
 It picks a free port on this computer only (127.0.0.1), opens your browser, and keeps running until you
 close the window.
 """
@@ -30,6 +34,34 @@ def app_folder() -> Path:
     return Path.cwd()
 
 
+def writable(folder: Path) -> bool:
+    probe = folder / ".cv-tailor-write-test"
+    try:
+        probe.write_text("ok")
+        probe.unlink()
+        return True
+    except OSError:
+        return False
+
+
+def user_data_folder() -> Path:
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / "CV Tailor"
+    if sys.platform.startswith("win"):
+        return Path(os.environ.get("APPDATA", Path.home())) / "CV Tailor"
+    return Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")) / "cv-tailor"
+
+
+def data_folder() -> Path:
+    """Next to the app when possible (portable); otherwise the user's own data folder."""
+    folder = app_folder()
+    if writable(folder):
+        return folder
+    fallback = user_data_folder()
+    fallback.mkdir(parents=True, exist_ok=True)
+    return fallback
+
+
 def free_port(start: int = 8000, tries: int = 50) -> int:
     for port in range(start, start + tries):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -42,7 +74,7 @@ def free_port(start: int = 8000, tries: int = 50) -> int:
 
 
 def main() -> None:
-    folder = app_folder()
+    folder = data_folder()
     os.chdir(folder)  # .env and my_cv/ are read and written here
     os.environ.setdefault("MODE", "local")
     port = free_port()
