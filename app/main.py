@@ -4,19 +4,30 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
+import time
+from collections import deque
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from app import export as exporter
-from app import master
+from app import local_settings, master
 from app.config import Settings, get_settings
 from app.extract import UnsupportedFile, extract_text
 from app.llm.base import LLMError, LLMProvider
 from app.llm.providers import get_provider
-from app.models import AnalyzeRequest, AnalyzeResponse, EvidenceRequest, ExportRequest, MasterCV
+from app.models import (
+    AnalyzeRequest,
+    AnalyzeResponse,
+    EvidenceRequest,
+    ExportRequest,
+    MasterCV,
+    SettingsUpdate,
+    SettingsView,
+)
 from app.pipeline import tailor
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -30,11 +41,60 @@ app = FastAPI(
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
-def provider_dep() -> LLMProvider:
+class RateLimit:
+    """Sliding one-hour window per visitor, in memory (enough for a single small demo server)."""
+
+    def __init__(self) -> None:
+        self.hits: dict[str, deque] = {}
+        self.lock = threading.Lock()
+
+    def allow(self, who: str, per_hour: int) -> bool:
+        now = time.monotonic()
+        with self.lock:
+            q = self.hits.setdefault(who, deque())
+            while q and now - q[0] > 3600:
+                q.popleft()
+            if len(q) >= per_hour:
+                return False
+            q.append(now)
+            return True
+
+
+limiter = RateLimit()
+
+
+def _visitor(request: Request) -> str:
+    fwd = request.headers.get("x-forwarded-for", "")
+    return fwd.split(",")[0].strip() or (request.client.host if request.client else "unknown")
+
+
+def provider_dep(request: Request, settings: Settings = Depends(get_settings)) -> LLMProvider:
+    """Local: the provider from .env. Demo: the visitor's own provider and key, sent with this request only."""
     try:
-        return get_provider()
+        if settings.mode != "demo":
+            return get_provider(settings)
+        name = request.headers.get("x-llm-provider", "mock").lower()
+        if name not in {"anthropic", "openai", "mock"}:
+            raise HTTPException(400, "Unknown provider")
+        if name == "mock":
+            return get_provider(settings.model_copy(update={"llm_provider": "mock"}))
+        key = request.headers.get("x-api-key", "").strip()
+        if not key:
+            raise HTTPException(400, "Add your API key in Settings, or choose the free rule-based mode.")
+        if not limiter.allow(_visitor(request), settings.demo_runs_per_hour):
+            raise HTTPException(429, f"Demo limit reached ({settings.demo_runs_per_hour} runs per hour). "
+                                     "Please try again later.")
+        return get_provider(settings.model_copy(update={"llm_provider": name, f"{name}_api_key": key}))
     except LLMError as err:
         raise HTTPException(status_code=503, detail=str(err)) from err
+
+
+def _local_only(request: Request, settings: Settings = Depends(get_settings)) -> Settings:
+    """Settings can only be changed in local mode, from this machine."""
+    host = request.client.host if request.client else ""
+    if settings.mode != "local" or host not in {"127.0.0.1", "::1", "localhost", "testclient"}:
+        raise HTTPException(403, "Settings can only be changed on your own computer")
+    return settings
 
 
 @app.get("/", include_in_schema=False)
@@ -45,7 +105,43 @@ def index() -> FileResponse:
 @app.get("/api/health")
 def health(settings: Settings = Depends(get_settings)) -> dict:
     return {"status": "ok", "provider": settings.llm_provider, "master_cv": settings.master_cv_enabled,
-            "review": settings.review_enabled}
+            "review": settings.review_enabled, "mode": settings.mode}
+
+
+def _view(s: Settings) -> SettingsView:
+    return SettingsView(mode=s.mode, provider=s.llm_provider, anthropic_key_set=bool(s.anthropic_api_key),
+                        openai_key_set=bool(s.openai_api_key), anthropic_model=s.anthropic_model,
+                        openai_model=s.openai_model, review_enabled=s.review_enabled)
+
+
+@app.get("/api/settings", response_model=SettingsView)
+def read_settings(settings: Settings = Depends(get_settings)) -> SettingsView:
+    if settings.mode == "demo":
+        return SettingsView(mode="demo", provider="mock", review_enabled=settings.review_enabled)
+    return _view(settings)
+
+
+@app.put("/api/settings", response_model=SettingsView)
+def write_settings(body: SettingsUpdate, settings: Settings = Depends(_local_only)) -> SettingsView:
+    values: dict[str, str] = {}
+    if body.provider:
+        values["LLM_PROVIDER"] = body.provider
+    if body.anthropic_api_key is not None:
+        values["ANTHROPIC_API_KEY"] = body.anthropic_api_key
+    if body.openai_api_key is not None:
+        values["OPENAI_API_KEY"] = body.openai_api_key
+    if body.review_enabled is not None:
+        values["REVIEW_ENABLED"] = "true" if body.review_enabled else "false"
+    # check before writing, so a bad save never leaves the app without a working provider
+    provider = body.provider or settings.llm_provider
+    if provider != "mock":
+        typed = getattr(body, f"{provider}_api_key")
+        if not (typed if typed is not None else getattr(settings, f"{provider}_api_key")):
+            raise HTTPException(422, f"Add your {provider.title()} API key, or choose the rule-based mode.")
+    if values:
+        local_settings.update_env(values)
+        get_settings.cache_clear()
+    return _view(get_settings())
 
 
 @app.post("/api/extract")

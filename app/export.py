@@ -393,7 +393,7 @@ def render_pdf(doc: CVDoc, size: float = FONT_SIZES[0], stretch: float = 1.0,
     head_st = ParagraphStyle("h", base, fontName=st.bold, fontSize=size + (1.5 if st.upper_headings else 1),
                              leading=size * 1.35, spaceBefore=size * 0.7 * stretch)
     bullet_st = ParagraphStyle("b", just, leftIndent=14 if st.org_first else 13, bulletIndent=3,
-                               spaceBefore=size * 0.1 * stretch)
+                               bulletFontName=st.regular, spaceBefore=size * 0.1 * stretch)
 
     pdf = SimpleDocTemplate(io.BytesIO(), pagesize=A4, leftMargin=MARGIN_MM * mm, rightMargin=MARGIN_MM * mm,
                             topMargin=12 * mm, bottomMargin=12 * mm)

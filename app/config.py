@@ -3,11 +3,18 @@
 from functools import lru_cache
 from typing import Literal
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    # "local": your own machine; API keys and the master CV are kept in files next to the app and can be set
+    # from the page. "demo": a public demo; every visitor sends their own key with each request, nothing is
+    # stored, the master CV is off and LLM runs are rate-limited per visitor.
+    mode: Literal["local", "demo"] = "local"
+    demo_runs_per_hour: int = 8
 
     # Which LLM backend to use. "mock" needs no API key and is used for tests and offline demos.
     llm_provider: Literal["anthropic", "openai", "mock"] = "mock"
@@ -34,6 +41,12 @@ class Settings(BaseSettings):
     # Upload guard-rails
     max_upload_mb: float = 5.0
     max_text_chars: int = 30_000
+
+    @model_validator(mode="after")
+    def _demo_is_stateless(self):
+        if self.mode == "demo":
+            self.master_cv_enabled = False  # never store anyone's CV on a shared server
+        return self
 
 
 @lru_cache

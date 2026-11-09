@@ -119,7 +119,33 @@ that list is your learning plan, or a sign the job isn't a fit.
 
 Set `MASTER_CV_ENABLED=false` if you ever deploy the app for other people.
 
-## Quick start
+## Use it without installing anything (Windows)
+
+Download **CV-Tailor-Windows.zip** from the [Releases](../../releases) page, unzip it anywhere (a USB stick
+works too) and double-click **CV-Tailor.exe**. The app opens in your browser. Click **Settings** to choose
+Anthropic or OpenAI and paste your API key. Your key (`.env`) and your master CV (`my_cv/`) are saved
+inside that folder, so the folder is fully portable.
+
+The first time, Windows may say "Windows protected your PC" because the app isn't code-signed: click
+**More info → Run anyway**. Close the black window to stop the app.
+
+The zip is built by GitHub Actions (`.github/workflows/windows-app.yml`) on a Windows runner and smoke-tested
+before it's attached to the release. To publish a new version: `git tag v1.1.0 && git push --tags`.
+
+## Public demo (bring your own key)
+
+`MODE=demo` turns the same app into a safe public demo:
+
+- Each visitor enters their **own** API key in Settings. It stays in their browser (session only, or saved
+  in the browser if they tick "remember") and is sent only with their own request. The server never stores
+  or logs it, and its own settings never hold a key.
+- No master CV and nothing saved on the server. Settings can't be changed remotely.
+- AI runs are limited per visitor (`DEMO_RUNS_PER_HOUR`, default 8). Without a key, the free rule-based mode runs.
+
+Deploy on [Render](https://render.com) for free: **New → Blueprint →** pick this repo. `render.yaml` sets
+everything up. (Free instances sleep when idle, so the first visit after a while takes about a minute.)
+
+## Quick start (from source)
 
 ```bash
 git clone https://github.com/mohammadsharvankk/cv-tailor-agent.git
@@ -167,6 +193,8 @@ app/
   main.py              FastAPI routes + static UI
   config.py            settings from env / .env
   models.py            Pydantic contracts for every step
+  desktop.py           Windows app launcher: free local port, opens the browser, keeps data next to the .exe
+  local_settings.py    Settings panel -> .env (local mode only; keys are never sent back to the page)
   extract.py           PDF / DOCX / TXT -> text
   export.py            finished CV in Harvard or Classic style: PDF + DOCX, page fitting and filling, ATS read-back
   fonts/               Carlito (metric-compatible with Calibri, SIL Open Font License)
@@ -181,7 +209,7 @@ app/
     checks.py          ATS score, fact guard, markdown rendering
     skills.py          ~100 skills with aliases; literal vs alias-aware matching
   static/              single-page UI (HTML/CSS/vanilla JS) + sample CV and JD
-tests/                 47 pytest tests: checks, LLM retry logic, reviewer loop, CV export, API end to end
+tests/                 53 pytest tests: checks, LLM retry logic, reviewer loop, CV export, settings, demo mode, API
 ```
 
 ## Testing

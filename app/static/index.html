@@ -15,8 +15,35 @@
       <p>Match your CV to a job: honest gap analysis, X-Y-Z bullets, ATS score and a fact check.</p>
     </div>
   </div>
-  <span id="provider" class="badge">…</span>
+  <div class="topright">
+    <span id="provider" class="badge">…</span>
+    <button id="openSettings" class="ghost small">⚙ Settings</button>
+  </div>
 </header>
+<p id="keyHint" class="keyhint" hidden>Running the free rule-based mode. <button id="hintSettings" class="link">Add your API key</button> for full AI tailoring.</p>
+
+<dialog id="settingsDlg" class="settings">
+  <form id="settingsForm">
+    <h2>Settings</h2>
+    <p id="setNote" class="muted small"></p>
+    <label>AI provider
+      <select id="setProvider">
+        <option value="anthropic">Anthropic (Claude)</option>
+        <option value="openai">OpenAI</option>
+        <option value="mock">No key: free rule-based mode</option>
+      </select>
+    </label>
+    <label id="rowAnth">Anthropic API key <input type="password" id="setAnth" autocomplete="off" spellcheck="false"></label>
+    <label id="rowOai">OpenAI API key <input type="password" id="setOai" autocomplete="off" spellcheck="false"></label>
+    <label class="check" id="rowReview"><input type="checkbox" id="setReview"> Independent review step (1–2 extra calls per run)</label>
+    <label class="check" id="rowRemember" hidden><input type="checkbox" id="setRemember"> Remember my key in this browser</label>
+    <p id="setError" class="error" hidden></p>
+    <div class="actions">
+      <button type="button" id="setCancel" class="ghost">Cancel</button>
+      <button type="submit" class="primary">Save</button>
+    </div>
+  </form>
+</dialog>
 
 <main>
   <section class="inputs">

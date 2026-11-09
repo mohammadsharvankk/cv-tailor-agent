@@ -181,3 +181,21 @@ class ExportReport(BaseModel):
     text_checks: dict[str, bool] = Field(default_factory=dict, description="What an ATS can read from the PDF text layer")
     ats_score: float | None = None
     warnings: list[str] = Field(default_factory=list)
+
+
+class SettingsView(BaseModel):
+    """What the page may know about the server settings. Keys themselves are never returned."""
+    mode: Literal["local", "demo"]
+    provider: str
+    anthropic_key_set: bool = False
+    openai_key_set: bool = False
+    anthropic_model: str = ""
+    openai_model: str = ""
+    review_enabled: bool = True
+
+
+class SettingsUpdate(BaseModel):
+    provider: Literal["anthropic", "openai", "mock"] | None = None
+    anthropic_api_key: str | None = Field(default=None, max_length=300, description="None = keep, '' = remove")
+    openai_api_key: str | None = Field(default=None, max_length=300, description="None = keep, '' = remove")
+    review_enabled: bool | None = None

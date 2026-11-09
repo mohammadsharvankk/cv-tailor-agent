@@ -103,3 +103,18 @@ button.link { border: 0; background: none; padding: 0; color: var(--accent); fon
 .exreport { font-size: 13px; margin-bottom: 12px; padding: 8px 12px; border-radius: 8px; background: var(--good-bg); color: var(--good); }
 .exreport.warn { background: var(--warn-bg); color: var(--warn); }
 .exreport ul { margin: 4px 0 0 18px; padding: 0; }
+
+.topright { display: flex; align-items: center; gap: 8px; }
+.keyhint { max-width: 1100px; margin: 0 auto 12px; padding: 8px 14px; border-radius: 10px; font-size: 14px;
+  background: var(--warn-bg); color: var(--warn); }
+.keyhint .link { color: inherit; font-weight: 600; text-decoration: underline; }
+dialog.settings { border: none; border-radius: 14px; padding: 22px 24px; width: min(460px, 92vw);
+  box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+dialog.settings::backdrop { background: rgba(15, 23, 42, .45); }
+dialog.settings h2 { margin: 0 0 4px; }
+dialog.settings label { display: block; font-size: 14px; font-weight: 600; margin: 12px 0 0; }
+dialog.settings label input[type=password], dialog.settings select { display: block; width: 100%; margin-top: 5px;
+  padding: 8px 10px; border: 1px solid var(--line, #d1d5db); border-radius: 8px; font: inherit; font-weight: 400;
+  box-sizing: border-box; }
+dialog.settings label.check { font-weight: 400; display: flex; gap: 8px; align-items: center; }
+dialog.settings .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }

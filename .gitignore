@@ -12,3 +12,5 @@ Thumbs.db
 
 # Private master CV - never commit
 my_cv/
+build/
+dist/

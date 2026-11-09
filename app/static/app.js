@@ -4,12 +4,97 @@ let lastMarkdown = "";
 let lastResult = null;
 
 let masterEnabled = false;
-fetch("/api/health").then((r) => r.json()).then((h) => {
-  $("provider").textContent = `LLM: ${h.provider}`;
-  masterEnabled = !!h.master_cv;
-  $("useMaster").hidden = $("saveMaster").hidden = !masterEnabled;
-  if (h.provider === "mock") $("provider").title = "Rule-based demo mode. Set LLM_PROVIDER and an API key for full results.";
-}).catch(() => ($("provider").textContent = "offline"));
+let mode = "local";
+
+// ---------- demo mode: the visitor's own key, kept in their browser only ----------
+const store = {
+  get(k) { try { return sessionStorage.getItem(k) ?? localStorage.getItem(k); } catch { return null; } },
+  set(k, v, remember) {
+    try {
+      sessionStorage.removeItem(k); localStorage.removeItem(k);
+      if (v) (remember ? localStorage : sessionStorage).setItem(k, v);
+    } catch { /* storage blocked: the key lasts until the page closes */ memoryKeys[k] = v; }
+  },
+};
+const memoryKeys = {};
+const demoProvider = () => store.get("cvt_provider") || memoryKeys.cvt_provider || "mock";
+const demoKey = () => store.get("cvt_key") || memoryKeys.cvt_key || "";
+
+function llmHeaders() {
+  if (mode !== "demo") return {};
+  const p = demoProvider();
+  return p === "mock" ? { "X-LLM-Provider": "mock" } : { "X-LLM-Provider": p, "X-API-Key": demoKey() };
+}
+
+function refreshStatus() {
+  return fetch("/api/health").then((r) => r.json()).then((h) => {
+    mode = h.mode || "local";
+    const provider = mode === "demo" ? demoProvider() : h.provider;
+    $("provider").textContent = mode === "demo" ? `Demo · ${provider}` : `LLM: ${provider}`;
+    masterEnabled = !!h.master_cv;
+    $("useMaster").hidden = $("saveMaster").hidden = !masterEnabled;
+    $("keyHint").hidden = provider !== "mock";
+  }).catch(() => ($("provider").textContent = "offline"));
+}
+refreshStatus();
+
+// ---------- settings panel ----------
+function showProviderRows() {
+  const p = $("setProvider").value;
+  $("rowAnth").hidden = p !== "anthropic";
+  $("rowOai").hidden = p !== "openai";
+}
+$("setProvider").onchange = showProviderRows;
+
+async function openSettings() {
+  $("setError").hidden = true;
+  $("setAnth").value = $("setOai").value = "";
+  const demo = mode === "demo";
+  $("rowReview").hidden = demo;
+  $("rowRemember").hidden = !demo;
+  if (demo) {
+    $("setNote").textContent = "Use your own API key. It stays in your browser and is sent only with your own " +
+      "requests; this server never stores it. Without a key, the free rule-based mode runs.";
+    $("setProvider").value = demoProvider();
+    const key = demoKey();
+    $("setAnth").placeholder = $("setOai").placeholder = key ? "Key saved in this browser (type to replace)" : "Paste your key";
+    try { $("setRemember").checked = !!localStorage.getItem("cvt_key"); } catch { $("setRemember").checked = false; }
+  } else {
+    const s = await (await fetch("/api/settings")).json();
+    $("setNote").textContent = "Saved on this computer only, in the .env file next to the app.";
+    $("setProvider").value = s.provider;
+    $("setAnth").placeholder = s.anthropic_key_set ? "Saved ✓ (type to replace)" : "sk-ant-…";
+    $("setOai").placeholder = s.openai_key_set ? "Saved ✓ (type to replace)" : "sk-…";
+    $("setReview").checked = s.review_enabled;
+  }
+  showProviderRows();
+  $("settingsDlg").showModal();
+}
+$("openSettings").onclick = openSettings;
+$("hintSettings").onclick = openSettings;
+$("setCancel").onclick = () => $("settingsDlg").close();
+
+$("settingsForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const provider = $("setProvider").value;
+  const typed = provider === "anthropic" ? $("setAnth").value.trim() : provider === "openai" ? $("setOai").value.trim() : "";
+  if (mode === "demo") {
+    if (provider !== "mock" && !typed && !demoKey()) return setError("Paste your API key, or choose the free mode.");
+    const remember = $("setRemember").checked;
+    store.set("cvt_provider", provider, remember);
+    if (typed) store.set("cvt_key", typed, remember);
+    if (provider === "mock") store.set("cvt_key", "", remember);
+  } else {
+    const body = { provider, review_enabled: $("setReview").checked };
+    if ($("setAnth").value.trim()) body.anthropic_api_key = $("setAnth").value.trim();
+    if ($("setOai").value.trim()) body.openai_api_key = $("setOai").value.trim();
+    const r = await fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    if (!r.ok) return setError((await r.json()).detail || "Could not save");
+  }
+  $("settingsDlg").close();
+  refreshStatus();
+};
+function setError(msg) { $("setError").textContent = msg; $("setError").hidden = false; }
 
 function showError(msg) { $("error").textContent = msg; $("error").hidden = !msg; }
 
@@ -52,7 +137,7 @@ $("go").onclick = async () => {
   $("loading").hidden = false;
   startSteps();
   try {
-    const r = await fetch("/api/analyze", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cv_text, jd_text }) });
+    const r = await fetch("/api/analyze", { method: "POST", headers: { "Content-Type": "application/json", ...llmHeaders() }, body: JSON.stringify({ cv_text, jd_text }) });
     const data = await r.json();
     if (!r.ok) throw new Error(typeof data.detail === "string" ? data.detail : "Request failed");
     render(data);

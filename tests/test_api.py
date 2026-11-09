@@ -28,7 +28,7 @@ client = TestClient(app)
 
 def test_health_and_index():
     assert client.get("/api/health").json() == {"status": "ok", "provider": "mock", "master_cv": True,
-                                                 "review": True}
+                                                 "review": True, "mode": "local"}
     assert "CV Tailor Agent" in client.get("/").text
 
 
